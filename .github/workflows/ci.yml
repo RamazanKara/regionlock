@@ -58,7 +58,9 @@ jobs:
             echo "engine=$engine renders to valid YAML"
           done
       - name: Kyverno brace-escaping intact
-        run: grep -q 'request.object.spec.nodeSelector."topology.kubernetes.io/region"' /tmp/kyverno.yaml
+        # The rendered Kyverno JMESPath sits inside a double-quoted YAML scalar, so
+        # the label's quotes are backslash-escaped (nodeSelector.\"topology…\").
+        run: grep -qF 'nodeSelector.\"topology.kubernetes.io/region\"' /tmp/kyverno.yaml
       - name: all four Kyverno policies present
         run: |
           for p in eu-region-placement no-non-eu-egress customer-managed-key encryption-at-rest; do
@@ -97,7 +99,9 @@ jobs:
           helm template rl chart/regionlock > /tmp/ky.yaml
           # kyverno apply reuses the same test resources; Kyverno covers controllers
           # via autogen and reaches the same 17 violations Gatekeeper reaches explicitly.
-          out=$(kyverno apply /tmp/ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml)
+          # kyverno apply exits non-zero when a policy fails, which is expected
+          # here — capture the output without letting `set -e` abort the step.
+          out=$(kyverno apply /tmp/ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml || true)
           echo "$out" | tail -3
           echo "$out" | grep -qE "fail: 17" || { echo "expected fail: 17"; exit 1; }
           echo "$out" | grep -E "pod-eu|pvc-good|pod-aff-eu" && { echo "a compliant resource was flagged"; exit 1; } || echo "compliant resources clean"
