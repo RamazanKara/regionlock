@@ -1,0 +1,45 @@
+name: ci
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./... -race
+      - run: go build ./...
+      - name: lint gate must FAIL on violating fixtures
+        run: |
+          if go run ./cmd/regionlock lint --manifests testdata/violating; then
+            echo "expected a non-zero exit on violating fixtures"; exit 1
+          else
+            echo "ok: violations gated"
+          fi
+      - name: lint gate must PASS on compliant fixtures
+        run: go run ./cmd/regionlock lint --manifests testdata/compliant
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: helm lint
+        run: helm lint chart/regionlock
+      - name: render chart
+        run: helm template regionlock chart/regionlock > /tmp/rendered.yaml
+      - name: rendered output is valid YAML
+        run: python3 -c "import yaml; list(yaml.safe_load_all(open('/tmp/rendered.yaml')))"
+      - name: Kyverno region expression is emitted verbatim (brace-escaping intact)
+        run: grep -q 'request.object.spec.nodeSelector."topology.kubernetes.io/region"' /tmp/rendered.yaml
+      - name: all four ClusterPolicies are present
+        run: |
+          for p in eu-region-placement no-non-eu-egress customer-managed-key encryption-at-rest; do
+            grep -q "regionlock-$p" /tmp/rendered.yaml || { echo "missing policy $p"; exit 1; }
+          done

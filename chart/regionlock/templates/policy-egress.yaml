@@ -1,0 +1,58 @@
+{{- if .Values.policies.noNonEuEgress }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-no-non-eu-egress
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: no-non-eu-egress
+    policies.kyverno.io/title: No Non-EU Egress
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: Service, NetworkPolicy
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 46"
+    policies.kyverno.io/description: >-
+      Services must not proxy to external endpoints (ExternalName) and
+      NetworkPolicies must not permit unrestricted (0.0.0.0/0, ::/0) egress that
+      could carry personal data to destinations outside the EEA.
+spec:
+  validationFailureAction: {{ .Values.enforcementAction }}
+  background: true
+  rules:
+{{- if not .Values.allowExternalName }}
+    - name: no-externalname-service
+      match:
+        any:
+          - resources:
+              kinds:
+                - Service
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: Service type=ExternalName proxies outside the cluster and may transfer data outside the EEA [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.serviceTypeOrEmpty" . | quote }}
+                operator: Equals
+                value: ExternalName
+{{- end }}
+    - name: no-unrestricted-egress
+      match:
+        any:
+          - resources:
+              kinds:
+                - NetworkPolicy
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: NetworkPolicy permits unrestricted egress (0.0.0.0/0 or ::/0), which can reach non-EU destinations [GDPR Art. 46]
+        deny:
+          conditions:
+            any:
+              - key: {{ include "regionlock.egressCidrs" . | quote }}
+                operator: AnyIn
+                value:
+                  - 0.0.0.0/0
+                  - ::/0
+{{- end }}

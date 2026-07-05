@@ -1,0 +1,26 @@
+apiVersion: v2
+name: regionlock
+description: Enforce EU data-residency on Kubernetes with tested, regulation-mapped Kyverno policies.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.25.0-0"
+keywords:
+  - sovereignty
+  - gdpr
+  - data-residency
+  - kyverno
+  - compliance
+  - eu
+  - policy
+home: https://github.com/RamazanKara/regionlock
+sources:
+  - https://github.com/RamazanKara/regionlock
+maintainers:
+  - name: Ramazan Kara
+    url: https://github.com/RamazanKara
+annotations:
+  category: Security
+  # Kyverno must be installed in the cluster (it is not bundled as a dependency
+  # so operators can manage its lifecycle themselves).
+  regionlock.io/requires: kyverno>=1.11

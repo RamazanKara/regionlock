@@ -1,0 +1,88 @@
+{
+  "id": "eu-data-residency-v1",
+  "version": "1.0.0",
+  "title": "EU Data Residency & Sovereignty Baseline",
+  "jurisdiction": "European Union",
+  "updated": "2026-07-05",
+  "notes": "Maps Regionlock enforcement checks to the specific legal provisions they provide evidence of controls for. This is evidence of technical/organizational controls (Art. 32) and placement enforcement — not a cryptographic proof that data never physically left the EU.",
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to an EU region",
+      "description": "Every workload declares node placement constrained to an allow-listed EU cloud region via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "Unconstrained or non-EU placement can schedule pods — and the data they process — outside the EEA, constituting a third-country transfer.",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 45",
+          "title": "Transfers on the basis of an adequacy decision",
+          "url": "https://gdpr-info.eu/art-45-gdpr/"
+        },
+        {
+          "regulation": "EU Data Act",
+          "article": "Art. 32",
+          "title": "International governmental access and transfer of non-personal data",
+          "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
+        }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or extra-EU egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress that could reach non-EU destinations.",
+      "severity": "high",
+      "rationale": "Open egress or external-name proxying can move personal data to endpoints outside the EEA without a transfer safeguard.",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 46",
+          "title": "Transfers subject to appropriate safeguards",
+          "url": "https://gdpr-info.eu/art-46-gdpr/"
+        }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims are annotated with a customer-managed key (CMK) reference, so the data controller — not only the cloud provider — controls the encryption keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys reduce provider access to plaintext and strengthen the sovereignty posture required for sensitive EU data.",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 32",
+          "title": "Security of processing",
+          "url": "https://gdpr-info.eu/art-32-gdpr/"
+        }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is a baseline technical measure expected under the security-of-processing obligation.",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 32",
+          "title": "Security of processing",
+          "url": "https://gdpr-info.eu/art-32-gdpr/"
+        }
+      ]
+    }
+  ]
+}

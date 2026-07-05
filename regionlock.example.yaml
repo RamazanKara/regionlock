@@ -1,0 +1,22 @@
+# Example Regionlock CLI config. Pass with:  regionlock report --config regionlock.yaml
+#
+# Every field is optional; unset fields fall back to the built-in defaults.
+
+# Cloud region identifiers considered inside the EEA (replace the built-in list).
+euRegions:
+  - eu-central-1
+  - eu-west-1
+  - europe-west3
+  - westeurope
+
+# Fail workloads that declare no region constraint at all.
+requireRegion: true
+
+# Permit Service type=ExternalName (off by default).
+allowExternalName: false
+
+# PVC annotation that references a customer-managed key.
+cmkAnnotation: regionlock.io/cmk-key-id
+
+# PVC label asserting encryption at rest (value must be "true").
+encryptionLabel: regionlock.io/encrypted

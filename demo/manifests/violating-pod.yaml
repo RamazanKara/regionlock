@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: checkout-us
+  namespace: shop
+spec:
+  # Pinned OUTSIDE the EU — Regionlock blocks this at admission.
+  nodeSelector:
+    topology.kubernetes.io/region: us-east-1
+  containers:
+    - name: app
+      image: nginx:1.27-alpine

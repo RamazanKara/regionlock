@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-api
+  namespace: shop
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: checkout-api }
+  template:
+    metadata:
+      labels: { app: checkout-api }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values: [eu-central-1, eu-west-1]
+      containers:
+        - name: api
+          image: ghcr.io/example/checkout:1.4.0
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: orders-data
+  namespace: shop
+  labels:
+    regionlock.io/encrypted: "true"
+  annotations:
+    regionlock.io/cmk-key-id: arn:aws:kms:eu-central-1:111122223333:key/abcd-ef01
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-api
+  namespace: shop
+spec:
+  type: ClusterIP
+  selector: { app: checkout-api }
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restricted-egress
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8

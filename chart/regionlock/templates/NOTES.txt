@@ -1,0 +1,34 @@
+Regionlock {{ .Chart.AppVersion }} installed as "{{ .Release.Name }}".
+
+Enforcement mode: {{ .Values.enforcementAction }}
+Active controls:
+{{- if .Values.policies.euRegionPlacement }}
+  ✓ eu-region-placement    (GDPR Art. 44/45, EU Data Act Art. 32)
+{{- end }}
+{{- if .Values.policies.noNonEuEgress }}
+  ✓ no-non-eu-egress       (GDPR Art. 44/46)
+{{- end }}
+{{- if .Values.policies.customerManagedKey }}
+  ✓ customer-managed-key   (GDPR Art. 32)
+{{- end }}
+{{- if .Values.policies.encryptionAtRest }}
+  ✓ encryption-at-rest     (GDPR Art. 32)
+{{- end }}
+
+Requires Kyverno in the cluster:
+  helm repo add kyverno https://kyverno.github.io/kyverno/
+  helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+
+Try it:
+  kubectl run us --image=nginx --overrides='{"spec":{"nodeSelector":{"topology.kubernetes.io/region":"us-east-1"}}}'
+  # -> admission BLOCKED by regionlock-eu-region-placement
+
+Generate an audit-ready evidence report of the live cluster:
+  regionlock report --format html,md,json --out ./evidence
+
+{{- if eq .Values.enforcementAction "Audit" }}
+
+NOTE: running in Audit mode — violations are recorded as PolicyReports but NOT
+blocked. Flip enforcementAction to "Enforce" when ready:
+  helm upgrade {{ .Release.Name }} regionlock/regionlock --set enforcementAction=Enforce
+{{- end }}

@@ -1,0 +1,15 @@
+# built binaries
+/regionlock
+/regionlock.exe
+*.exe
+
+# generated evidence output
+/evidence/
+
+# signing keys — never commit
+*.key
+signing.key
+
+# editor / OS cruft
+.DS_Store
+*.swp

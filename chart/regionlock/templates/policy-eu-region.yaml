@@ -1,0 +1,62 @@
+{{- if .Values.policies.euRegionPlacement }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-eu-region-placement
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: eu-region-placement
+    policies.kyverno.io/title: EU Region Placement
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: Pod
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 45; EU Data Act Art. 32"
+    policies.kyverno.io/description: >-
+      Workloads must be pinned to an allow-listed EU cloud region via the
+      topology.kubernetes.io/region label. Unconstrained or non-EU placement can
+      schedule pods — and the personal data they process — outside the EEA.
+spec:
+  validationFailureAction: {{ .Values.enforcementAction }}
+  background: true
+  rules:
+    - name: region-must-be-eu
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      preconditions:
+        all:
+          - key: {{ include "regionlock.regionExprOrEmpty" . | quote }}
+            operator: NotEquals
+            value: ""
+      validate:
+        message: >-
+          BLOCKED: non-EU region "{{ include "regionlock.regionExpr" . }}" violates EU data-residency policy [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.regionExpr" . | quote }}
+                operator: AnyNotIn
+                value:
+                {{- toYaml .Values.euRegions | nindent 18 }}
+{{- if .Values.requireRegion }}
+    - name: region-must-be-declared
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: no EU region declared via topology.kubernetes.io/region [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.regionExprOrEmpty" . | quote }}
+                operator: Equals
+                value: ""
+{{- end }}
+{{- end }}

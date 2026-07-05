@@ -1,0 +1,35 @@
+{{- if .Values.policies.customerManagedKey }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-customer-managed-key
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: customer-managed-key
+    policies.kyverno.io/title: Customer-Managed Key Storage
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: PersistentVolumeClaim
+    regionlock.io/articles: "GDPR Art. 32"
+    policies.kyverno.io/description: >-
+      PersistentVolumeClaims must reference a customer-managed key so the data
+      controller — not only the cloud provider — controls the encryption keys.
+spec:
+  validationFailureAction: {{ .Values.enforcementAction }}
+  background: true
+  rules:
+    - name: pvc-requires-cmk
+      match:
+        any:
+          - resources:
+              kinds:
+                - PersistentVolumeClaim
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: PersistentVolumeClaim must be annotated with a customer-managed key ({{ .Values.cmkAnnotation }}) [GDPR Art. 32]
+        pattern:
+          metadata:
+            annotations:
+              {{ .Values.cmkAnnotation | quote }}: "?*"
+{{- end }}

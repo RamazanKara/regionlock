@@ -1,0 +1,271 @@
+{
+  "tool": "regionlock",
+  "version": "v0.1.0",
+  "generatedAt": "2026-07-05T00:40:39Z",
+  "source": "testdata/violating",
+  "ruleset": {
+    "id": "eu-data-residency-v1",
+    "version": "1.0.0",
+    "title": "EU Data Residency \u0026 Sovereignty Baseline",
+    "jurisdiction": "European Union",
+    "updated": "2026-07-05"
+  },
+  "summary": {
+    "resources": 5,
+    "checks": 6,
+    "pass": 0,
+    "fail": 6,
+    "skip": 0,
+    "score": 0,
+    "compliant": false
+  },
+  "ruleScores": [
+    {
+      "ruleId": "customer-managed-key",
+      "ruleName": "Storage uses customer-managed keys",
+      "severity": "medium",
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 32",
+          "title": "Security of processing",
+          "url": "https://gdpr-info.eu/art-32-gdpr/"
+        }
+      ]
+    },
+    {
+      "ruleId": "encryption-at-rest",
+      "ruleName": "Encryption at rest declared",
+      "severity": "medium",
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 32",
+          "title": "Security of processing",
+          "url": "https://gdpr-info.eu/art-32-gdpr/"
+        }
+      ]
+    },
+    {
+      "ruleId": "eu-region-placement",
+      "ruleName": "Workloads pinned to an EU region",
+      "severity": "high",
+      "pass": 0,
+      "fail": 2,
+      "skip": 0,
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 45",
+          "title": "Transfers on the basis of an adequacy decision",
+          "url": "https://gdpr-info.eu/art-45-gdpr/"
+        },
+        {
+          "regulation": "EU Data Act",
+          "article": "Art. 32",
+          "title": "International governmental access and transfer of non-personal data",
+          "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
+        }
+      ]
+    },
+    {
+      "ruleId": "no-non-eu-egress",
+      "ruleName": "No unrestricted or extra-EU egress",
+      "severity": "high",
+      "pass": 0,
+      "fail": 2,
+      "skip": 0,
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 46",
+          "title": "Transfers subject to appropriate safeguards",
+          "url": "https://gdpr-info.eu/art-46-gdpr/"
+        }
+      ]
+    }
+  ],
+  "namespaces": [
+    {
+      "namespace": "shop",
+      "pass": 0,
+      "fail": 6,
+      "skip": 0,
+      "score": 0
+    }
+  ],
+  "findings": [
+    {
+      "ruleId": "customer-managed-key",
+      "ruleName": "Storage uses customer-managed keys",
+      "severity": "medium",
+      "status": "fail",
+      "kind": "PersistentVolumeClaim",
+      "name": "orders-data",
+      "namespace": "shop",
+      "message": "no customer-managed key annotation (regionlock.io/cmk-key-id)",
+      "source": "testdata\\violating\\workloads.yaml#2",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 32",
+          "title": "Security of processing",
+          "url": "https://gdpr-info.eu/art-32-gdpr/"
+        }
+      ]
+    },
+    {
+      "ruleId": "encryption-at-rest",
+      "ruleName": "Encryption at rest declared",
+      "severity": "medium",
+      "status": "fail",
+      "kind": "PersistentVolumeClaim",
+      "name": "orders-data",
+      "namespace": "shop",
+      "message": "encryption at rest not declared (label/annotation regionlock.io/encrypted=true)",
+      "source": "testdata\\violating\\workloads.yaml#2",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 32",
+          "title": "Security of processing",
+          "url": "https://gdpr-info.eu/art-32-gdpr/"
+        }
+      ]
+    },
+    {
+      "ruleId": "eu-region-placement",
+      "ruleName": "Workloads pinned to an EU region",
+      "severity": "high",
+      "status": "fail",
+      "kind": "Deployment",
+      "name": "checkout-api",
+      "namespace": "shop",
+      "message": "pinned to non-EU region(s): us-east-1",
+      "source": "testdata\\violating\\workloads.yaml#0",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 45",
+          "title": "Transfers on the basis of an adequacy decision",
+          "url": "https://gdpr-info.eu/art-45-gdpr/"
+        },
+        {
+          "regulation": "EU Data Act",
+          "article": "Art. 32",
+          "title": "International governmental access and transfer of non-personal data",
+          "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
+        }
+      ]
+    },
+    {
+      "ruleId": "eu-region-placement",
+      "ruleName": "Workloads pinned to an EU region",
+      "severity": "high",
+      "status": "fail",
+      "kind": "StatefulSet",
+      "name": "sessions",
+      "namespace": "shop",
+      "message": "no EU region constraint declared (set topology.kubernetes.io/region via nodeSelector or nodeAffinity)",
+      "source": "testdata\\violating\\workloads.yaml#1",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 45",
+          "title": "Transfers on the basis of an adequacy decision",
+          "url": "https://gdpr-info.eu/art-45-gdpr/"
+        },
+        {
+          "regulation": "EU Data Act",
+          "article": "Art. 32",
+          "title": "International governmental access and transfer of non-personal data",
+          "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
+        }
+      ]
+    },
+    {
+      "ruleId": "no-non-eu-egress",
+      "ruleName": "No unrestricted or extra-EU egress",
+      "severity": "high",
+      "status": "fail",
+      "kind": "NetworkPolicy",
+      "name": "allow-all-egress",
+      "namespace": "shop",
+      "message": "permits unrestricted egress 0.0.0.0/0 (can reach non-EU destinations)",
+      "source": "testdata\\violating\\workloads.yaml#4",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 46",
+          "title": "Transfers subject to appropriate safeguards",
+          "url": "https://gdpr-info.eu/art-46-gdpr/"
+        }
+      ]
+    },
+    {
+      "ruleId": "no-non-eu-egress",
+      "ruleName": "No unrestricted or extra-EU egress",
+      "severity": "high",
+      "status": "fail",
+      "kind": "Service",
+      "name": "analytics-proxy",
+      "namespace": "shop",
+      "message": "Service proxies to external endpoint \"metrics.us-analytics.example.com\" (potential extra-EU transfer)",
+      "source": "testdata\\violating\\workloads.yaml#3",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 46",
+          "title": "Transfers subject to appropriate safeguards",
+          "url": "https://gdpr-info.eu/art-46-gdpr/"
+        }
+      ]
+    }
+  ],
+  "integrity": {
+    "algorithm": "sha256",
+    "digest": "786dc24ac335e0735d7038430b62ddd57ca5dfdd194c7a0a28b9f29d57704d65"
+  }
+}

@@ -1,0 +1,71 @@
+# -- How Kyverno reacts to a violation: "Enforce" blocks admission, "Audit"
+# only records a policy report. Start with Audit, then flip to Enforce.
+enforcementAction: Enforce
+
+# -- Fail workloads that declare no region constraint at all (via nodeSelector
+# on topology.kubernetes.io/region).
+requireRegion: true
+
+# -- Permit Service type=ExternalName. Off by default: an ExternalName can proxy
+# traffic — and data — to an endpoint outside the EEA.
+allowExternalName: false
+
+# -- Cloud region identifiers considered inside the EEA. Matched against the
+# well-known topology.kubernetes.io/region label. Extend for your providers.
+euRegions:
+  # AWS
+  - eu-central-1
+  - eu-central-2
+  - eu-west-1
+  - eu-west-2
+  - eu-west-3
+  - eu-north-1
+  - eu-south-1
+  - eu-south-2
+  # GCP
+  - europe-west1
+  - europe-west2
+  - europe-west3
+  - europe-west4
+  - europe-west6
+  - europe-west8
+  - europe-west9
+  - europe-west10
+  - europe-west12
+  - europe-north1
+  - europe-central2
+  - europe-southwest1
+  # Azure
+  - westeurope
+  - northeurope
+  - germanywestcentral
+  - germanynorth
+  - francecentral
+  - francesouth
+  - swedencentral
+  - switzerlandnorth
+  - norwayeast
+  - polandcentral
+  - italynorth
+  - spaincentral
+
+# -- PVC annotation that references a customer-managed key (CMK).
+cmkAnnotation: regionlock.io/cmk-key-id
+
+# -- PVC label asserting encryption at rest (value must be the string "true").
+encryptionLabel: regionlock.io/encrypted
+
+# -- Namespaces exempt from every Regionlock policy.
+excludeNamespaces:
+  - kube-system
+  - kube-node-lease
+  - kube-public
+  - kyverno
+  - regionlock
+
+# -- Toggle individual controls.
+policies:
+  euRegionPlacement: true
+  noNonEuEgress: true
+  customerManagedKey: true
+  encryptionAtRest: true

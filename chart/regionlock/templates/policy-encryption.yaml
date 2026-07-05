@@ -1,0 +1,35 @@
+{{- if .Values.policies.encryptionAtRest }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-encryption-at-rest
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: encryption-at-rest
+    policies.kyverno.io/title: Encryption At Rest
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: PersistentVolumeClaim
+    regionlock.io/articles: "GDPR Art. 32"
+    policies.kyverno.io/description: >-
+      PersistentVolumeClaims must declare encryption at rest via the configured
+      label — a baseline technical measure under the security-of-processing duty.
+spec:
+  validationFailureAction: {{ .Values.enforcementAction }}
+  background: true
+  rules:
+    - name: pvc-requires-encryption-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - PersistentVolumeClaim
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: PersistentVolumeClaim must declare encryption at rest ({{ .Values.encryptionLabel }}=true) [GDPR Art. 32]
+        pattern:
+          metadata:
+            labels:
+              {{ .Values.encryptionLabel | quote }}: "true"
+{{- end }}
