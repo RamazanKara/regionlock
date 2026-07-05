@@ -1,7 +1,7 @@
 {
   "tool": "regionlock",
   "version": "0.3.0",
-  "generatedAt": "2026-07-05T09:17:29Z",
+  "generatedAt": "2026-07-05T09:47:21Z",
   "source": "testdata/violating",
   "ruleset": {
     "id": "eu-data-residency-v1",
@@ -159,7 +159,7 @@
       "kind": "Deployment",
       "name": "checkout-api",
       "namespace": "shop",
-      "message": "pinned to non-EU region(s): us-east-1",
+      "message": "can schedule in non-EU region(s): us-east-1",
       "source": "testdata\\violating\\workloads.yaml#0",
       "articles": [
         {
@@ -190,7 +190,7 @@
       "kind": "Deployment",
       "name": "recommender",
       "namespace": "shop",
-      "message": "pinned to non-EU region(s): us-west-2",
+      "message": "can schedule in non-EU region(s): us-west-2",
       "source": "testdata\\violating\\affinity-egress.yaml#0",
       "articles": [
         {
@@ -221,7 +221,7 @@
       "kind": "StatefulSet",
       "name": "sessions",
       "namespace": "shop",
-      "message": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster)",
+      "message": "no EU region constraint declared (pin topology.kubernetes.io/region to an EU region on EVERY nodeAffinity term / nodeSelector, or set clusterRegion for a single-region cluster)",
       "source": "testdata\\violating\\workloads.yaml#1",
       "articles": [
         {
@@ -347,6 +347,6 @@
   ],
   "integrity": {
     "algorithm": "sha256",
-    "digest": "ee893fdb6a0e7711ae442c476a0418a6b63ffecd054492dd66d8b9ded1729bc2"
+    "digest": "c3a2bfbe35a8ae61ca8fe95d3e98a451d407e1cb17b1416818cfa307a0f2b13c"
   }
 }

@@ -18,12 +18,12 @@ Run `regionlock policies --regulation <id>` to print the full mapping.
 
 ## Control → provision mapping
 
-| Control | EU | Germany | Switzerland |
-|---|---|---|---|
-| `eu-region-placement` | GDPR Art. 44/45 · Data Act Art. 32 | GDPR Art. 44 · BDSG §1 | revFADP Art. 16/17 |
-| `no-non-eu-egress` | GDPR Art. 44/46 | GDPR Art. 44/46 | revFADP Art. 16 |
-| `customer-managed-key` | GDPR Art. 32 | GDPR Art. 32 · BDSG §64 | revFADP Art. 8 |
-| `encryption-at-rest` | GDPR Art. 32 | GDPR Art. 32 · BDSG §64 | revFADP Art. 8 |
+| Control | EU | Germany | Switzerland | UK | France |
+|---|---|---|---|---|---|
+| `eu-region-placement` | GDPR Art. 44/45 · Data Act Art. 32 | GDPR Art. 44 · BDSG §1 | revFADP Art. 16/17 | UK GDPR Art. 44 · DPA 2018 Pt.2 | GDPR Art. 44 · Loi 78-17 Art. 5 |
+| `no-non-eu-egress` | GDPR Art. 44/46 | GDPR Art. 44/46 | revFADP Art. 16 | UK GDPR Art. 44/46 | GDPR Art. 44/46 |
+| `customer-managed-key` | GDPR Art. 32 | GDPR Art. 32 · BDSG §64 | revFADP Art. 8 | UK GDPR Art. 32 | GDPR Art. 32 |
+| `encryption-at-rest` | GDPR Art. 32 | GDPR Art. 32 · BDSG §64 | revFADP Art. 8 | UK GDPR Art. 32 | GDPR Art. 32 |
 
 ## Versioning
 

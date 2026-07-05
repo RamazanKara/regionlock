@@ -54,16 +54,23 @@ func (r Resource) NamespaceOrDefault() string {
 	return "default"
 }
 
-// PodTemplate captures the placement intent of a workload's pod spec.
+// PodTemplate captures the placement intent of a workload's pod spec, resolved
+// to the set of regions the workload can actually schedule into (honoring
+// Kubernetes AND/OR affinity semantics).
 type PodTemplate struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	// RegionValues holds every value found on the well-known region key
-	// (topology.kubernetes.io/region) via nodeSelector or required
-	// nodeAffinity matchExpressions.
+	// RegionValues is the set of concrete regions the workload can reach — the
+	// union over required nodeAffinity terms of (term ∩ nodeSelector). An empty
+	// set on a constrained workload means the constraints are unsatisfiable.
 	RegionValues []string `json:"regionValues,omitempty"`
-	// HasRegionConstraint is true when any region placement was declared at
-	// all (whether EU or not).
+	// HasRegionConstraint is true when any region placement was declared at all
+	// (via nodeSelector or any required nodeAffinity In term), EU or not.
 	HasRegionConstraint bool `json:"hasRegionConstraint"`
+	// Unconstrained is true when the workload can still schedule into ANY region
+	// despite naming some — e.g. an OR of nodeAffinity terms where one term has
+	// no region constraint (a scheduling escape hatch). Such a workload is not
+	// guaranteed to stay in-region.
+	Unconstrained bool `json:"unconstrained,omitempty"`
 }
 
 // ServiceSpec captures the Service fields that can imply an external transfer.

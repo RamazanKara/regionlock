@@ -56,20 +56,35 @@ spec:
           msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeAffinity) violates EU data-residency policy [GDPR Art. 44]", [region])
         }
 
-        # no positive region pin at all (neither nodeSelector nor an In-affinity term).
+        # Not guaranteed to stay in-region: no nodeSelector region pin AND the
+        # affinity does not constrain every term to a region (an OR escape hatch,
+        # or no affinity at all).
         violation[{"msg": msg}] {
           input.parameters.requireRegion
           not has_nodeselector_region
-          count(affinity_region_values) == 0
-          msg := "BLOCKED: no EU region declared via topology.kubernetes.io/region [GDPR Art. 44]"
+          not all_terms_region_constrained
+          msg := "BLOCKED: workload is not guaranteed to stay in an EU region — pin topology.kubernetes.io/region on nodeSelector or EVERY nodeAffinity term [GDPR Art. 44]"
         }
 
         has_nodeselector_region {
           pod_spec.nodeSelector["topology.kubernetes.io/region"]
         }
 
+        affinity_terms := pod_spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms
+
+        all_terms_region_constrained {
+          count(affinity_terms) > 0
+          count([t | t := affinity_terms[_]; term_has_region(t)]) == count(affinity_terms)
+        }
+
+        term_has_region(t) {
+          expr := t.matchExpressions[_]
+          expr.key == "topology.kubernetes.io/region"
+          expr.operator == "In"
+        }
+
         affinity_region_values[v] {
-          term := pod_spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[_]
+          term := affinity_terms[_]
           expr := term.matchExpressions[_]
           expr.key == "topology.kubernetes.io/region"
           expr.operator == "In"

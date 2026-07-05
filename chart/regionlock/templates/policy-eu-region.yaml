@@ -68,15 +68,21 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: no EU region declared via topology.kubernetes.io/region (nodeSelector or an In nodeAffinity term) [GDPR Art. 44]
+          BLOCKED: workload is not guaranteed to stay in an EU region — pin topology.kubernetes.io/region to an EU region via nodeSelector or on EVERY nodeAffinity term [GDPR Art. 44]
         deny:
           conditions:
+            # No nodeSelector region pin, AND either no affinity terms or at least
+            # one affinity term is region-unconstrained (an OR escape hatch).
             all:
               - key: {{ include "regionlock.regionExprOrEmpty" . | quote }}
                 operator: Equals
                 value: ""
-              - key: {{ include "regionlock.regionAffinityCount" . | quote }}
+            any:
+              - key: {{ include "regionlock.termsCount" . | quote }}
                 operator: Equals
                 value: 0
+              - key: {{ include "regionlock.regionTermsCount" . | quote }}
+                operator: NotEquals
+                value: {{ include "regionlock.termsCount" . | quote }}
 {{- end }}
 {{- end }}

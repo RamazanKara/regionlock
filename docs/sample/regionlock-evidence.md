@@ -7,7 +7,7 @@
 | Ruleset | `eu-data-residency-v1@1.0.0` — EU Data Residency & Sovereignty Baseline |
 | Jurisdiction | European Union |
 | Source | `testdata/violating` |
-| Generated | 2026-07-05T09:17:29Z |
+| Generated | 2026-07-05T09:47:21Z |
 | Checks | 9 (0 pass / 9 fail / 0 skip) across 8 resources |
 
 ## Control summary
@@ -31,9 +31,9 @@
 |---|---|---|---|---|
 | customer-managed-key | `PersistentVolumeClaim/orders-data` | shop | no customer-managed key (annotation regionlock.io/cmk-key-id, or a StorageClass with a CMK parameter) | GDPR Art. 32 |
 | encryption-at-rest | `PersistentVolumeClaim/orders-data` | shop | encryption at rest not declared (label/annotation regionlock.io/encrypted=true, or an encrypted StorageClass) | GDPR Art. 32 |
-| eu-region-placement | `Deployment/checkout-api` | shop | pinned to non-EU region(s): us-east-1 | GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32 |
-| eu-region-placement | `Deployment/recommender` | shop | pinned to non-EU region(s): us-west-2 | GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32 |
-| eu-region-placement | `StatefulSet/sessions` | shop | no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster) | GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32 |
+| eu-region-placement | `Deployment/checkout-api` | shop | can schedule in non-EU region(s): us-east-1 | GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32 |
+| eu-region-placement | `Deployment/recommender` | shop | can schedule in non-EU region(s): us-west-2 | GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32 |
+| eu-region-placement | `StatefulSet/sessions` | shop | no EU region constraint declared (pin topology.kubernetes.io/region to an EU region on EVERY nodeAffinity term / nodeSelector, or set clusterRegion for a single-region cluster) | GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32 |
 | no-non-eu-egress | `NetworkPolicy/allow-all-egress` | shop | permits unrestricted egress 0.0.0.0/0 (can reach non-EU destinations) | GDPR Art. 44, GDPR Art. 46 |
 | no-non-eu-egress | `Service/analytics-proxy` | shop | Service proxies to external endpoint "metrics.us-analytics.example.com" (potential extra-EU transfer) | GDPR Art. 44, GDPR Art. 46 |
 | no-non-eu-egress | `Service/legacy-billing` | shop | Service exposes externalIPs 198.51.100.7 (destination not verifiable as EU) | GDPR Art. 44, GDPR Art. 46 |
@@ -41,6 +41,6 @@
 
 ## Integrity
 
-- **sha256**: `ee893fdb6a0e7711ae442c476a0418a6b63ffecd054492dd66d8b9ded1729bc2`
+- **sha256**: `c3a2bfbe35a8ae61ca8fe95d3e98a451d407e1cb17b1416818cfa307a0f2b13c`
 
 > This report evidences technical and organizational placement controls enforced on the cluster. It is not a cryptographic attestation that data never physically left the EEA.

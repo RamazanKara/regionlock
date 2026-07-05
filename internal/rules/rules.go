@@ -168,35 +168,33 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 		return nil
 	}
 	pt := r.PodTemplate
-	// A declared cluster region outside the allow-list fails EVERY workload —
-	// including an EU-pinned one — because the operator has asserted the whole
-	// cluster physically runs outside the territory, so an in-EU node label is at
-	// best mislabeled or unschedulable.
-	if cfg.ClusterRegion != "" && !cfg.isEU(cfg.ClusterRegion) {
-		return []Finding{newFinding(r, RuleEURegion, Fail,
-			fmt.Sprintf("cluster region %q is not in-territory (declared via clusterRegion)", cfg.ClusterRegion))}
-	}
-	// A workload is "pinned" only if it declares a positive, concrete region via
-	// nodeSelector or an In-nodeAffinity term. Exists/DoesNotExist/NotIn produce
-	// no concrete values, so they do not count as an EU pin.
-	if !pt.HasRegionConstraint {
+
+	// unpinned resolves the "not positively pinned to an EU-only set" case using
+	// the cluster-region / requireRegion policy.
+	unpinned := func() []Finding {
 		switch {
 		case cfg.ClusterRegion != "":
 			return []Finding{newFinding(r, RuleEURegion, Pass,
-				fmt.Sprintf("no workload pin; cluster region %q is in-territory", cfg.ClusterRegion))}
+				fmt.Sprintf("no guaranteed EU pin; cluster region %q is in-territory", cfg.ClusterRegion))}
 		case cfg.RequireRegion:
 			return []Finding{newFinding(r, RuleEURegion, Fail,
-				"no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster)")}
+				"no EU region constraint declared (pin topology.kubernetes.io/region to an EU region on EVERY nodeAffinity term / nodeSelector, or set clusterRegion for a single-region cluster)")}
 		default:
 			return []Finding{newFinding(r, RuleEURegion, Skip, "no region constraint declared (RequireRegion disabled)")}
 		}
 	}
-	// Constrained but with an empty reachable set: nodeSelector and nodeAffinity
-	// intersect to nothing — the workload cannot schedule anywhere.
-	if len(pt.RegionValues) == 0 {
+
+	// A declared cluster region outside the allow-list fails EVERY workload —
+	// the operator has asserted the whole cluster physically runs outside the EEA.
+	if cfg.ClusterRegion != "" && !cfg.isEU(cfg.ClusterRegion) {
 		return []Finding{newFinding(r, RuleEURegion, Fail,
-			"region constraints are unsatisfiable (nodeSelector and nodeAffinity intersect to no region)")}
+			fmt.Sprintf("cluster region %q is not in-territory (declared via clusterRegion)", cfg.ClusterRegion))}
 	}
+
+	// A concrete non-EU region reachable via ANY affinity term (or the
+	// nodeSelector) is a violation regardless of pinning/cluster mode — the
+	// workload can schedule outside the EEA. This catches the "OR escape" where
+	// one term names a non-EU region and a sibling term is unconstrained.
 	var nonEU []string
 	for _, v := range pt.RegionValues {
 		if !cfg.isEU(v) {
@@ -205,7 +203,22 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 	}
 	if len(nonEU) > 0 {
 		return []Finding{newFinding(r, RuleEURegion, Fail,
-			fmt.Sprintf("pinned to non-EU region(s): %s", strings.Join(nonEU, ", ")))}
+			fmt.Sprintf("can schedule in non-EU region(s): %s", strings.Join(nonEU, ", ")))}
+	}
+
+	// No region rule at all → unpinned.
+	if !pt.HasRegionConstraint {
+		return unpinned()
+	}
+	// A region rule exists and every reachable concrete region is EU, but an
+	// unconstrained term still lets the pod schedule anywhere → not guaranteed EU.
+	if pt.Unconstrained {
+		return unpinned()
+	}
+	// Constrained with an empty reachable set: the constraints are unsatisfiable.
+	if len(pt.RegionValues) == 0 {
+		return []Finding{newFinding(r, RuleEURegion, Fail,
+			"region constraints are unsatisfiable (nodeSelector and nodeAffinity intersect to no region)")}
 	}
 	return []Finding{newFinding(r, RuleEURegion, Pass,
 		fmt.Sprintf("pinned to EU region(s): %s", strings.Join(pt.RegionValues, ", ")))}

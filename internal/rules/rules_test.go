@@ -111,6 +111,28 @@ func TestRequireEgressPolicy(t *testing.T) {
 	}
 }
 
+func TestOrEscapeReachableNonEUFails(t *testing.T) {
+	// A workload that can reach a non-EU region (via an OR escape term) must FAIL
+	// even under cluster-region mode — the scan records the reachable non-EU value.
+	sneaky := model.Resource{Kind: "Deployment", Name: "sneaky", Namespace: "shop",
+		PodTemplate: &model.PodTemplate{HasRegionConstraint: true, Unconstrained: true, RegionValues: []string{"us-east-1"}}}
+	eu := NewConfig(func() Config { c := DefaultConfig(); c.ClusterRegion = "eu-central-1"; return c }())
+	if f, _ := findingFor(Evaluate([]model.Resource{sneaky}, eu), RuleEURegion); f.Status != Fail {
+		t.Fatalf("a workload reachable to a non-EU region must fail even in cluster-region mode, got %s: %s", f.Status, f.Message)
+	}
+
+	// An EU-named workload with an escape term is NOT a guaranteed pin: fails
+	// under requireRegion, passes under an in-territory cluster region.
+	escapeEU := model.Resource{Kind: "Deployment", Name: "esc", Namespace: "shop",
+		PodTemplate: &model.PodTemplate{HasRegionConstraint: true, Unconstrained: true, RegionValues: []string{"eu-central-1"}}}
+	if f, _ := findingFor(Evaluate([]model.Resource{escapeEU}, DefaultConfig()), RuleEURegion); f.Status != Fail {
+		t.Fatalf("EU-named + escape should fail under requireRegion (not guaranteed EU), got %s", f.Status)
+	}
+	if f, _ := findingFor(Evaluate([]model.Resource{escapeEU}, eu), RuleEURegion); f.Status != Pass {
+		t.Fatalf("EU-named + escape should pass under an in-territory cluster region, got %s", f.Status)
+	}
+}
+
 func TestClusterRegionMode(t *testing.T) {
 	unpinned := model.Resource{Kind: "Deployment", Name: "a", Namespace: "shop", PodTemplate: &model.PodTemplate{}}
 	nonEUpin := workload("b", true, "us-east-1")

@@ -234,7 +234,8 @@ func extract(doc map[string]any, source string) (model.Resource, bool) {
 func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 	pt := &model.PodTemplate{NodeSelector: strMap(mapAt(pod, "nodeSelector"))}
 
-	// nodeSelector region equality → a singleton constraint set.
+	// nodeSelector region equality → a concrete singleton; nil means "the
+	// nodeSelector imposes no region constraint" (universe).
 	var nsSet map[string]bool
 	for _, key := range regionKeys {
 		if v, ok := pt.NodeSelector[key]; ok && strings.TrimSpace(v) != "" {
@@ -243,43 +244,53 @@ func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 		}
 	}
 
-	// required nodeAffinity. Affinity constrains the region only if EVERY term
-	// declares a region In-expression — otherwise a term with no region
-	// constraint lets the pod schedule in any region (OR semantics).
-	var affSet map[string]bool
 	terms := sliceAt(mapAt(pod, "affinity", "nodeAffinity", "requiredDuringSchedulingIgnoredDuringExecution"), "nodeSelectorTerms")
-	if len(terms) > 0 {
-		union := map[string]bool{}
-		allTermsConstrained := true
+
+	// Compute the reachable region set. nodeSelectorTerms are ORed; each term is
+	// ANDed with the nodeSelector. A source with no region constraint is the
+	// universe (any region). "universe" is tracked as a flag because it cannot be
+	// enumerated; a concrete non-EU value reachable via any term is recorded.
+	reachable := map[string]bool{}
+	hasUniverse := false
+	hasRegionRule := nsSet != nil
+
+	if len(terms) == 0 {
+		if nsSet != nil {
+			for r := range nsSet {
+				reachable[r] = true
+			}
+		} else {
+			hasUniverse = true // no placement constraint at all
+		}
+	} else {
 		for _, t := range terms {
 			tm, _ := t.(map[string]any)
-			termSet, has := termRegionSet(tm)
-			if !has {
-				allTermsConstrained = false
-				continue
+			termSet, termHasRegion := termRegionSet(tm)
+			if termHasRegion {
+				hasRegionRule = true
 			}
-			for r := range termSet {
-				union[r] = true
+			switch {
+			case nsSet == nil && !termHasRegion:
+				hasUniverse = true // this term can reach any region
+			case nsSet == nil && termHasRegion:
+				for r := range termSet {
+					reachable[r] = true
+				}
+			case nsSet != nil && !termHasRegion:
+				for r := range nsSet {
+					reachable[r] = true
+				}
+			default: // both constrain region: the term is nodeSelector ∩ term
+				for r := range intersectSets(nsSet, termSet) {
+					reachable[r] = true
+				}
 			}
-		}
-		if allTermsConstrained {
-			affSet = union
 		}
 	}
 
-	var effective map[string]bool
-	switch {
-	case nsSet != nil && affSet != nil:
-		effective = intersectSets(nsSet, affSet)
-	case nsSet != nil:
-		effective = nsSet
-	case affSet != nil:
-		effective = affSet
-	}
-	if effective != nil {
-		pt.HasRegionConstraint = true
-		pt.RegionValues = sortedKeys(effective)
-	}
+	pt.HasRegionConstraint = hasRegionRule
+	pt.Unconstrained = hasUniverse
+	pt.RegionValues = sortedKeys(reachable)
 	return pt
 }
 

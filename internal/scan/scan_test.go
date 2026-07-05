@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/RamazanKara/regionlock/internal/model"
 )
 
 const deploymentYAML = `
@@ -164,15 +166,21 @@ spec:
 	}
 }
 
-// helper: parse a single Pod and return its effective region set + constrained flag.
+// helper: parse a single Pod and return its resolved pod template.
 func podRegions(t *testing.T, spec string) ([]string, bool) {
+	t.Helper()
+	pt := podTemplate(t, spec)
+	return pt.RegionValues, pt.HasRegionConstraint
+}
+
+func podTemplate(t *testing.T, spec string) *model.PodTemplate {
 	t.Helper()
 	y := "apiVersion: v1\nkind: Pod\nmetadata: { name: p, namespace: shop }\nspec:\n" + spec
 	rs, err := ParseBytes([]byte(y), "t.yaml")
 	if err != nil || len(rs) != 1 || rs[0].PodTemplate == nil {
 		t.Fatalf("parse failed: %v", err)
 	}
-	return rs[0].PodTemplate.RegionValues, rs[0].PodTemplate.HasRegionConstraint
+	return rs[0].PodTemplate
 }
 
 func TestRegionAndOrSemantics(t *testing.T) {
@@ -223,8 +231,9 @@ func TestRegionAndOrSemantics(t *testing.T) {
 		t.Fatalf("OR terms should union to both regions, got %v", vals)
 	}
 
-	// A term with NO region expr means affinity does not constrain region (OR escape hatch).
-	_, con = podRegions(t, `
+	// A term with NO region expr is an OR escape hatch: the workload names a
+	// region but can still schedule anywhere → Unconstrained, not a guaranteed pin.
+	pt := podTemplate(t, `
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -234,8 +243,24 @@ func TestRegionAndOrSemantics(t *testing.T) {
           - matchExpressions:
               - { key: disktype, operator: In, values: [ssd] }
   containers: [{ name: c, image: nginx }]`)
-	if con {
-		t.Fatalf("a term without a region expr should leave the workload unconstrained on region")
+	if !pt.HasRegionConstraint || !pt.Unconstrained {
+		t.Fatalf("EU-term + escape-term should be HasRegionConstraint+Unconstrained, got %+v", pt)
+	}
+
+	// The dangerous OR escape: one term names a NON-EU region, a sibling escapes.
+	// The non-EU region must be recorded as reachable so the rule engine fails it.
+	pt = podTemplate(t, `
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [us-east-1] }
+          - matchExpressions:
+              - { key: disktype, operator: In, values: [ssd] }
+  containers: [{ name: c, image: nginx }]`)
+	if len(pt.RegionValues) != 1 || pt.RegionValues[0] != "us-east-1" || !pt.Unconstrained {
+		t.Fatalf("non-EU term + escape should record us-east-1 as reachable, got %+v", pt)
 	}
 }
 

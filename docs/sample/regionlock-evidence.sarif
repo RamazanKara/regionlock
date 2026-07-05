@@ -113,7 +113,7 @@
           "ruleId": "eu-region-placement",
           "level": "error",
           "message": {
-            "text": "pinned to non-EU region(s): us-east-1 [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+            "text": "can schedule in non-EU region(s): us-east-1 [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
           },
           "locations": [
             {
@@ -129,7 +129,7 @@
           "ruleId": "eu-region-placement",
           "level": "error",
           "message": {
-            "text": "pinned to non-EU region(s): us-west-2 [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+            "text": "can schedule in non-EU region(s): us-west-2 [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
           },
           "locations": [
             {
@@ -145,7 +145,7 @@
           "ruleId": "eu-region-placement",
           "level": "error",
           "message": {
-            "text": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+            "text": "no EU region constraint declared (pin topology.kubernetes.io/region to an EU region on EVERY nodeAffinity term / nodeSelector, or set clusterRegion for a single-region cluster) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
           },
           "locations": [
             {

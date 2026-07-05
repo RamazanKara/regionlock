@@ -26,10 +26,6 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{ `{{ request.object.spec.type || '' }}` }}
 {{- end -}}
 
-{{- define "regionlock.egressCidrs" -}}
-{{ `{{ request.object.spec.egress[].to[].ipBlock.cidr }}` }}
-{{- end -}}
-
 {{/* Region values pinned via required nodeAffinity In-terms (flattened list).
      The `[]` after the filter flattens the matchExpression projection so the
      result is a flat list of region strings, not a list-of-lists. */}}
@@ -37,9 +33,16 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{ `{{ request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In'][].values[] }}` }}
 {{- end -}}
 
-{{/* Count of region values pinned via required nodeAffinity In-terms. */}}
-{{- define "regionlock.regionAffinityCount" -}}
-{{ `{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In'][].values[] || '') }}` }}
+{{/* Total number of required nodeAffinity terms. */}}
+{{- define "regionlock.termsCount" -}}
+{{ `{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms || '') }}` }}
+{{- end -}}
+
+{{/* Number of terms that carry a region In-expression. If this is less than the
+     total term count, some term is region-unconstrained (an OR escape hatch) and
+     the workload is not guaranteed to stay in-region. */}}
+{{- define "regionlock.regionTermsCount" -}}
+{{ `{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[?matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In']] || '') }}` }}
 {{- end -}}
 
 {{/* Count of Service externalIPs ('' default has length 0 for absent/empty). */}}
