@@ -23,7 +23,9 @@ jobs:
       - uses: anchore/sbom-action/download-syft@v0
       - uses: goreleaser/goreleaser-action@v6
         with:
-          version: "~> v2"
+          # Pinned to the version the config is validated against (the archive
+          # `format`/`formats` schema differs across v2 minors).
+          version: "v2.5.1"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
