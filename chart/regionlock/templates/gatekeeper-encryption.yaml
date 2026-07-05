@@ -18,6 +18,10 @@ spec:
           properties:
             encryptionLabel:
               type: string
+            approvedStorageClasses:
+              type: array
+              items:
+                type: string
   targets:
     - target: admission.k8s.gatekeeper.sh
       rego: |
@@ -26,7 +30,14 @@ spec:
         violation[{"msg": msg}] {
           labels := object.get(input.review.object.metadata, "labels", {})
           object.get(labels, input.parameters.encryptionLabel, "") != "true"
-          msg := sprintf("BLOCKED: PersistentVolumeClaim must declare encryption at rest (%v=true) [GDPR Art. 32]", [input.parameters.encryptionLabel])
+          not approved_sc
+          msg := sprintf("BLOCKED: PersistentVolumeClaim must declare encryption at rest (%v=true or an approved StorageClass) [GDPR Art. 32]", [input.parameters.encryptionLabel])
+        }
+
+        approved_sc {
+          sc := object.get(input.review.object.spec, "storageClassName", "")
+          sc != ""
+          input.parameters.approvedStorageClasses[_] == sc
         }
 ---
 apiVersion: constraints.gatekeeper.sh/v1beta1
@@ -34,6 +45,7 @@ kind: RegionlockEncryption
 metadata:
   name: regionlock-encryption-at-rest
   labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations: {{- include "regionlock.constraintHookAnnotations" . | nindent 4 }}
 spec:
   enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
   match:
@@ -46,4 +58,9 @@ spec:
     {{- end }}
   parameters:
     encryptionLabel: {{ .Values.encryptionLabel | quote }}
+    approvedStorageClasses:
+    {{- if .Values.approvedStorageClasses }}
+    {{- toYaml .Values.approvedStorageClasses | nindent 6 }}
+    {{- else }} []
+    {{- end }}
 {{- end }}

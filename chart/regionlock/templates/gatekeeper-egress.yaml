@@ -18,6 +18,8 @@ spec:
           properties:
             allowExternalName:
               type: boolean
+            allowExternalIPs:
+              type: boolean
   targets:
     - target: admission.k8s.gatekeeper.sh
       rego: |
@@ -30,10 +32,11 @@ spec:
           msg := sprintf("BLOCKED: Service type=ExternalName proxies to external endpoint %v (potential extra-EU transfer) [GDPR Art. 44]", [input.review.object.spec.externalName])
         }
 
+        # externalIPs is independent of ExternalName — gated by its own parameter.
         violation[{"msg": msg}] {
           input.review.kind.kind == "Service"
           count(object.get(input.review.object.spec, "externalIPs", [])) > 0
-          not input.parameters.allowExternalName
+          not input.parameters.allowExternalIPs
           msg := sprintf("BLOCKED: Service exposes externalIPs %v (destination not verifiable as EU) [GDPR Art. 44]", [input.review.object.spec.externalIPs])
         }
 
@@ -45,21 +48,25 @@ spec:
           msg := "BLOCKED: NetworkPolicy egress rule with no peer selector permits egress to any destination [GDPR Art. 46]"
         }
 
+        # Constant message so multiple open CIDRs in one policy dedupe to a single
+        # violation (matching the Kyverno per-policy behavior).
         violation[{"msg": msg}] {
           input.review.kind.kind == "NetworkPolicy"
-          cidr := input.review.object.spec.egress[_].to[_].ipBlock.cidr
-          unrestricted(cidr)
-          msg := sprintf("BLOCKED: NetworkPolicy permits unrestricted egress %v (can reach non-EU destinations) [GDPR Art. 46]", [cidr])
+          unrestricted(input.review.object.spec.egress[_].to[_].ipBlock.cidr)
+          msg := "BLOCKED: NetworkPolicy permits a default-route egress (/0 or /1), which can reach non-EU destinations [GDPR Art. 46]"
         }
 
-        # any /0 prefix (0.0.0.0/0, ::/0, or a non-canonical spelling) is a default route.
+        # A default route (/0) or a default-route half (/1, e.g. the 0.0.0.0/1 +
+        # 128.0.0.0/1 split that together cover the whole space) is unrestricted.
         unrestricted(cidr) { endswith(cidr, "/0") }
+        unrestricted(cidr) { endswith(cidr, "/1") }
 ---
 apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: RegionlockNoEgress
 metadata:
   name: regionlock-no-non-eu-egress
   labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations: {{- include "regionlock.constraintHookAnnotations" . | nindent 4 }}
 spec:
   enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
   match:
@@ -74,4 +81,5 @@ spec:
     {{- end }}
   parameters:
     allowExternalName: {{ .Values.allowExternalName }}
+    allowExternalIPs: {{ .Values.allowExternalIPs }}
 {{- end }}

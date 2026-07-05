@@ -15,20 +15,31 @@ Active controls:
   ✓ encryption-at-rest     (GDPR Art. 32)
 {{- end }}
 
+Engine: {{ .Values.engine }}
+{{- if has .Values.engine (list "kyverno" "both") }}
 Requires Kyverno in the cluster:
   helm repo add kyverno https://kyverno.github.io/kyverno/
   helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+{{- end }}
+{{- if has .Values.engine (list "gatekeeper" "both") }}
+Requires OPA/Gatekeeper in the cluster:
+  helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
+  helm install gatekeeper gatekeeper/gatekeeper -n gatekeeper-system --create-namespace
+{{- end }}
 
 Try it:
   kubectl run us --image=nginx --overrides='{"spec":{"nodeSelector":{"topology.kubernetes.io/region":"us-east-1"}}}'
-  # -> admission BLOCKED by regionlock-eu-region-placement
+  # -> admission denied: BLOCKED: non-EU region "us-east-1" ... [GDPR Art. 44]
 
 Generate an audit-ready evidence report of the live cluster:
   regionlock report --format html,md,json --out ./evidence
 
 {{- if eq .Values.enforcementAction "Audit" }}
 
-NOTE: running in Audit mode — violations are recorded as PolicyReports but NOT
-blocked. Flip enforcementAction to "Enforce" when ready:
-  helm upgrade {{ .Release.Name }} regionlock/regionlock --set enforcementAction=Enforce
+NOTE: running in Audit mode — violations are recorded (PolicyReports for Kyverno,
+audit results for Gatekeeper) but NOT blocked. Flip to Enforce when ready by
+re-running your install/upgrade with --set enforcementAction=Enforce --reuse-values,
+e.g.:
+  helm upgrade {{ .Release.Name }} <same chart source you installed from> \
+    --namespace {{ .Release.Namespace }} --reuse-values --set enforcementAction=Enforce
 {{- end }}

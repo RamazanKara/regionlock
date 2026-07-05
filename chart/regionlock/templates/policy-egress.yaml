@@ -36,6 +36,8 @@ spec:
               - key: {{ include "regionlock.serviceTypeOrEmpty" . | quote }}
                 operator: Equals
                 value: ExternalName
+{{- end }}
+{{- if not .Values.allowExternalIPs }}
     - name: no-external-ips-service
       match:
         any:

@@ -27,9 +27,18 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: PersistentVolumeClaim must declare encryption at rest ({{ .Values.encryptionLabel }}=true) [GDPR Art. 32]
-        pattern:
-          metadata:
-            labels:
-              {{ .Values.encryptionLabel | quote }}: "true"
+          BLOCKED: PersistentVolumeClaim must declare encryption at rest — label {{ .Values.encryptionLabel }}=true or use an approved StorageClass [GDPR Art. 32]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.encryptionLabelExpr" . | quote }}
+                operator: NotEquals
+                value: "true"
+              - key: {{ include "regionlock.storageClassName" . | quote }}
+                operator: AnyNotIn
+                value:
+                {{- if .Values.approvedStorageClasses }}
+                {{- toYaml .Values.approvedStorageClasses | nindent 18 }}
+                {{- else }} []
+                {{- end }}
 {{- end }}

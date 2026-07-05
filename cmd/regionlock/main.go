@@ -29,8 +29,8 @@ import (
 	"crypto/rand"
 )
 
-// Version is overridable at build time: -ldflags "-X main.Version=v1.0.0".
-var Version = "1.0.0-dev"
+// Version is overridable at build time: -ldflags "-X main.Version=v0.3.0".
+var Version = "0.3.0-dev"
 
 const toolName = "regionlock"
 
@@ -70,15 +70,16 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `regionlock %s — enforce & evidence EU data-residency on Kubernetes
 
 Usage:
-  regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--sign-key FILE]
+  regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
   regionlock lint     --manifests DIR [--fail-on any|high]
   regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
   regionlock policies [--regulation ID] [--json]
   regionlock keygen   [--out FILE]
   regionlock version
 
-Regulation rulesets: use --regulation to select a jurisdiction.
-Run "regionlock policies" to list a ruleset's controls.
+Common flags: --regulation ID (jurisdiction), --cluster-region REGION (single-region
+cluster), --require-egress-policy, --allow-external-name, --allow-external-ips, --config FILE.
+Run "regionlock policies" to list a ruleset's controls, "regionlock <command> -h" for flags.
 
 Run "regionlock <command> -h" for command flags.
 `, Version)
@@ -86,14 +87,38 @@ Run "regionlock <command> -h" for command flags.
 
 // fileConfig mirrors the tunable rules.Config in a YAML file.
 type fileConfig struct {
-	EURegions         []string `yaml:"euRegions"`
-	RequireRegion     *bool    `yaml:"requireRegion"`
-	AllowExternalName *bool    `yaml:"allowExternalName"`
-	CMKAnnotation     string   `yaml:"cmkAnnotation"`
-	EncryptionLabel   string   `yaml:"encryptionLabel"`
+	EURegions           []string `yaml:"euRegions"`
+	ClusterRegion       string   `yaml:"clusterRegion"`
+	RequireRegion       *bool    `yaml:"requireRegion"`
+	AllowExternalName   *bool    `yaml:"allowExternalName"`
+	AllowExternalIPs    *bool    `yaml:"allowExternalIPs"`
+	RequireEgressPolicy *bool    `yaml:"requireEgressPolicy"`
+	CMKAnnotation       string   `yaml:"cmkAnnotation"`
+	EncryptionLabel     string   `yaml:"encryptionLabel"`
 }
 
-func buildConfig(path string, rulesetRegions []string, requireRegion, allowExternalName bool, reqSet, allowSet bool) (rules.Config, error) {
+// cfgFlags carries CLI flag overrides (and whether each was explicitly set),
+// which win over the config file and defaults.
+type cfgFlags struct {
+	requireRegion, allowExternalName, allowExternalIPs, requireEgressPolicy                  bool
+	requireRegionSet, allowExternalNameSet, allowExternalIPsSet, egressPolicySet, clusterSet bool
+	clusterRegion                                                                            string
+}
+
+func flagsFrom(fs *flag.FlagSet, requireRegion, allowExternalName, allowExternalIPs, requireEgressPolicy bool, clusterRegion string) cfgFlags {
+	return cfgFlags{
+		requireRegion: requireRegion, allowExternalName: allowExternalName, allowExternalIPs: allowExternalIPs,
+		requireEgressPolicy:  requireEgressPolicy,
+		clusterRegion:        clusterRegion,
+		requireRegionSet:     flagSet(fs, "require-region"),
+		allowExternalNameSet: flagSet(fs, "allow-external-name"),
+		allowExternalIPsSet:  flagSet(fs, "allow-external-ips"),
+		egressPolicySet:      flagSet(fs, "require-egress-policy"),
+		clusterSet:           flagSet(fs, "cluster-region"),
+	}
+}
+
+func buildConfig(path string, rulesetRegions []string, f cfgFlags) (rules.Config, error) {
 	cfg := rules.DefaultConfig()
 	// A jurisdiction ruleset's own region allow-list is the baseline (below the
 	// config file and explicit flags).
@@ -112,11 +137,20 @@ func buildConfig(path string, rulesetRegions []string, requireRegion, allowExter
 		if len(fc.EURegions) > 0 {
 			cfg.EURegions = fc.EURegions
 		}
+		if fc.ClusterRegion != "" {
+			cfg.ClusterRegion = fc.ClusterRegion
+		}
 		if fc.RequireRegion != nil {
 			cfg.RequireRegion = *fc.RequireRegion
 		}
 		if fc.AllowExternalName != nil {
 			cfg.AllowExternalName = *fc.AllowExternalName
+		}
+		if fc.AllowExternalIPs != nil {
+			cfg.AllowExternalIPs = *fc.AllowExternalIPs
+		}
+		if fc.RequireEgressPolicy != nil {
+			cfg.RequireEgressPolicy = *fc.RequireEgressPolicy
 		}
 		if fc.CMKAnnotation != "" {
 			cfg.CMKAnnotation = fc.CMKAnnotation
@@ -126,11 +160,20 @@ func buildConfig(path string, rulesetRegions []string, requireRegion, allowExter
 		}
 	}
 	// Explicit flags win over config file and defaults.
-	if reqSet {
-		cfg.RequireRegion = requireRegion
+	if f.requireRegionSet {
+		cfg.RequireRegion = f.requireRegion
 	}
-	if allowSet {
-		cfg.AllowExternalName = allowExternalName
+	if f.allowExternalNameSet {
+		cfg.AllowExternalName = f.allowExternalName
+	}
+	if f.allowExternalIPsSet {
+		cfg.AllowExternalIPs = f.allowExternalIPs
+	}
+	if f.egressPolicySet {
+		cfg.RequireEgressPolicy = f.requireEgressPolicy
+	}
+	if f.clusterSet {
+		cfg.ClusterRegion = f.clusterRegion
 	}
 	// Rebuild the internal region set after any override.
 	cfg = rules.NewConfig(cfg)
@@ -168,7 +211,10 @@ func runReport(args []string) error {
 	configPath := fs.String("config", "", "path to a regionlock.yaml config")
 	signKey := fs.String("sign-key", "", "path to an ed25519 seed (hex) to sign the report")
 	requireRegion := fs.Bool("require-region", true, "fail workloads with no region constraint")
+	clusterRegion := fs.String("cluster-region", "", "declare the cluster's single region; unpinned workloads pass when it is in-territory")
 	allowExternalName := fs.Bool("allow-external-name", false, "permit Service type=ExternalName")
+	allowExternalIPs := fs.Bool("allow-external-ips", false, "permit Service spec.externalIPs")
+	requireEgressPolicy := fs.Bool("require-egress-policy", false, "flag workload namespaces with no egress-restricting NetworkPolicy")
 	strict := fs.Bool("strict", false, "exit non-zero if the report is non-compliant")
 	fs.Parse(args)
 
@@ -176,7 +222,7 @@ func runReport(args []string) error {
 	if err != nil {
 		return err
 	}
-	cfg, err := buildConfig(*configPath, rs.Regions, *requireRegion, *allowExternalName, flagSet(fs, "require-region"), flagSet(fs, "allow-external-name"))
+	cfg, err := buildConfig(*configPath, rs.Regions, flagsFrom(fs, *requireRegion, *allowExternalName, *allowExternalIPs, *requireEgressPolicy, *clusterRegion))
 	if err != nil {
 		return err
 	}
@@ -282,7 +328,10 @@ func runLint(args []string) error {
 	configPath := fs.String("config", "", "path to a regionlock.yaml config")
 	failOn := fs.String("fail-on", "any", "which failures set a non-zero exit: any|high")
 	requireRegion := fs.Bool("require-region", true, "fail workloads with no region constraint")
+	clusterRegion := fs.String("cluster-region", "", "declare the cluster's single region; unpinned workloads pass when it is in-territory")
 	allowExternalName := fs.Bool("allow-external-name", false, "permit Service type=ExternalName")
+	allowExternalIPs := fs.Bool("allow-external-ips", false, "permit Service spec.externalIPs")
+	requireEgressPolicy := fs.Bool("require-egress-policy", false, "flag workload namespaces with no egress-restricting NetworkPolicy")
 	fs.Parse(args)
 
 	if *manifests == "" {
@@ -295,7 +344,7 @@ func runLint(args []string) error {
 	if err != nil {
 		return err
 	}
-	cfg, err := buildConfig(*configPath, rs.Regions, *requireRegion, *allowExternalName, flagSet(fs, "require-region"), flagSet(fs, "allow-external-name"))
+	cfg, err := buildConfig(*configPath, rs.Regions, flagsFrom(fs, *requireRegion, *allowExternalName, *allowExternalIPs, *requireEgressPolicy, *clusterRegion))
 	if err != nil {
 		return err
 	}

@@ -11,14 +11,30 @@ euRegions:
   - europe-west3
   - westeurope
 
-# Fail workloads that declare no region constraint at all.
+# Declare the cluster's single region. On a single-region cluster this lets
+# unpinned workloads pass (while an explicit non-EU pin still fails), so you are
+# not forced to label every workload. Leave empty for per-workload pinning.
+clusterRegion: ""
+
+# Fail workloads that declare no region constraint at all (ignored when
+# clusterRegion is set).
 requireRegion: true
+
+# Flag workload namespaces that have no egress-restricting NetworkPolicy
+# (Kubernetes defaults to allow-all egress). Opt-in.
+requireEgressPolicy: false
 
 # Permit Service type=ExternalName (off by default).
 allowExternalName: false
 
-# PVC annotation that references a customer-managed key.
+# Permit Service spec.externalIPs (off by default; independent of the above).
+allowExternalIPs: false
+
+# PVC annotation that references a customer-managed key. A PVC also passes if it
+# uses a StorageClass whose parameters carry a CMK (kmsKeyId / diskEncryptionSetID
+# / disk-encryption-kms-key).
 cmkAnnotation: regionlock.io/cmk-key-id
 
-# PVC label asserting encryption at rest (value must be "true").
+# PVC label asserting encryption at rest (value must be "true"). A PVC also passes
+# if it uses a StorageClass with `encrypted: "true"` or a CMK parameter.
 encryptionLabel: regionlock.io/encrypted

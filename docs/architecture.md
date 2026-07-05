@@ -39,10 +39,17 @@ reviewable changelog rather than silently rotting.
 
 ## Enforcement parity
 
-The Kyverno and Gatekeeper policies are validated to produce **identical
-violations** for the same inputs — the `gatekeeper` CI job runs `gator test`
-against `chart/regionlock/gatekeeper-tests/resources.yaml` and asserts the exact
-violation count, mirroring the rule-engine unit tests.
+The Kyverno and Gatekeeper policies are validated to reach the **same decision**
+on a shared fixture set. CI runs both engines offline against
+`chart/regionlock/gatekeeper-tests/resources.yaml` — `gator test` for Gatekeeper
+and `kyverno apply` for Kyverno — and asserts the same violation count (13),
+including controller-managed workloads (Kyverno covers them via autogen;
+Gatekeeper via an explicit kind-dispatched pod spec). A live e2e workflow then
+installs each engine into a real kind cluster and confirms a non-EU pod is
+blocked and a compliant pod admitted at the actual admission webhook. This is
+decision/count parity plus a live smoke test — not a formal proof that every
+possible input yields byte-identical messages (the two engines phrase and group
+messages differently).
 
 ## Integrity model
 

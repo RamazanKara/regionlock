@@ -11,7 +11,7 @@ inputs:
     required: true
     default: "."
   regulation:
-    description: "Regulation ruleset id (eu-data-residency-v1, de-data-residency-v1, ch-fadp-v1)"
+    description: "Regulation ruleset id (eu-data-residency-v1, de-data-residency-v1, ch-fadp-v1, uk-data-residency-v1, fr-data-residency-v1)"
     required: false
     default: "eu-data-residency-v1"
   fail-on:

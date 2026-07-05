@@ -55,7 +55,7 @@ Apache-2.0, Kyverno/OPA-based, with the evidence report as a first-class output.
 
 | | |
 |---|---|
-| **Enforce** | A Helm chart of tested **Kyverno** *or* **OPA/Gatekeeper** policies that block, at admission, workloads not pinned to an in-territory region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName` services, and NetworkPolicies with unrestricted egress. Both engines are CI-verified to produce identical violations. |
+| **Enforce** | A Helm chart of tested **Kyverno** *or* **OPA/Gatekeeper** policies that block, at admission, workloads (incl. those from Deployments/CronJobs) not pinned to an in-territory region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName`/`externalIPs` services, and unrestricted-egress NetworkPolicies. Both engines are CI-verified to reach the same decision on a shared fixture set (offline via `kyverno apply` + `gator test`) and live in a kind cluster. |
 | **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report — console, Markdown, **HTML**, **PDF**, JSON, **SARIF** — mapping every check to the specific article it evidences, stamped with a SHA-256 digest and optional ed25519 signature. |
 | **Gate** | `regionlock lint` fails a CI build on a residency violation, `regionlock diff` comments the residency delta on a PR, and the [GitHub Action](#github-action) uploads SARIF to the Security tab — so drift is caught in the PR, not the audit. |
 
@@ -148,7 +148,7 @@ Gate every PR and surface violations in the Security tab:
 ```yaml
 - uses: actions/checkout@v4
 - id: regionlock
-  uses: RamazanKara/regionlock@v1.0.0
+  uses: RamazanKara/regionlock@v0.3.0
   with:
     manifests: ./k8s
     regulation: eu-data-residency-v1
@@ -192,8 +192,8 @@ hand it to a DPO without over-claiming.
 
 - [Installation](docs/installation.md) · [Configuration](docs/configuration.md) ·
   [Regulations](docs/regulations.md) · [CI integration](docs/ci-integration.md) ·
-  [Architecture](docs/architecture.md) · [Stability](docs/stability.md) ·
-  [Releasing](RELEASING.md)
+  [Architecture](docs/architecture.md) · [Limitations & threat model](docs/limitations.md) ·
+  [Stability](docs/stability.md) · [Releasing](RELEASING.md)
 
 ## Stability
 

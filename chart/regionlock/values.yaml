@@ -16,6 +16,10 @@ requireRegion: true
 # traffic — and data — to an endpoint outside the EEA.
 allowExternalName: false
 
+# -- Permit Service spec.externalIPs. Off by default; independent of
+# allowExternalName (externalIPs advertises arbitrary destination IPs).
+allowExternalIPs: false
+
 # -- Cloud region identifiers considered inside the EEA. Matched against the
 # well-known topology.kubernetes.io/region label. Extend for your providers.
 euRegions:
@@ -60,6 +64,13 @@ cmkAnnotation: regionlock.io/cmk-key-id
 
 # -- PVC label asserting encryption at rest (value must be the string "true").
 encryptionLabel: regionlock.io/encrypted
+
+# -- StorageClasses known to provision encrypted volumes with a customer-managed
+# key. A PVC that uses one of these satisfies the CMK and encryption controls
+# without needing the per-PVC annotation/label (mirrors the CLI, which reads the
+# StorageClass parameters directly). Admission cannot look up the StorageClass
+# object, so it matches by name — list your encrypted, CMK-backed StorageClasses.
+approvedStorageClasses: []
 
 # -- Namespaces exempt from every Regionlock policy.
 excludeNamespaces:

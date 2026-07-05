@@ -7,7 +7,7 @@
         "driver": {
           "name": "regionlock",
           "informationUri": "https://github.com/RamazanKara/regionlock",
-          "version": "1.0.0",
+          "version": "0.3.0",
           "rules": [
             {
               "id": "customer-managed-key",
@@ -81,7 +81,7 @@
           "ruleId": "customer-managed-key",
           "level": "warning",
           "message": {
-            "text": "no customer-managed key annotation (regionlock.io/cmk-key-id) [GDPR Art. 32]"
+            "text": "no customer-managed key (annotation regionlock.io/cmk-key-id, or a StorageClass with a CMK parameter) [GDPR Art. 32]"
           },
           "locations": [
             {
@@ -97,7 +97,7 @@
           "ruleId": "encryption-at-rest",
           "level": "warning",
           "message": {
-            "text": "encryption at rest not declared (label/annotation regionlock.io/encrypted=true) [GDPR Art. 32]"
+            "text": "encryption at rest not declared (label/annotation regionlock.io/encrypted=true, or an encrypted StorageClass) [GDPR Art. 32]"
           },
           "locations": [
             {
@@ -145,7 +145,7 @@
           "ruleId": "eu-region-placement",
           "level": "error",
           "message": {
-            "text": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+            "text": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
           },
           "locations": [
             {

@@ -47,10 +47,24 @@ type Config struct {
 	// EURegions is the allow-list of cloud region identifiers considered
 	// inside the EEA (matched case-insensitively against the region label).
 	EURegions []string
-	// RequireRegion fails workloads that declare no region constraint at all.
+	// ClusterRegion, when set, declares the single region the whole cluster runs
+	// in. It lets unpinned workloads pass on a single-region in-territory cluster
+	// (the common case), while an explicit non-EU workload pin still fails. If the
+	// declared cluster region is itself outside the allow-list, every workload
+	// fails. Empty means "evaluate per workload" (RequireRegion governs).
+	ClusterRegion string
+	// RequireRegion fails workloads that declare no region constraint at all
+	// (ignored when ClusterRegion is set).
 	RequireRegion bool
+	// RequireEgressPolicy flags workload namespaces that have no egress-restricting
+	// NetworkPolicy — Kubernetes defaults to allow-all egress, so the absence of a
+	// policy is itself an open egress path. Opt-in (off by default).
+	RequireEgressPolicy bool
 	// AllowExternalName permits Service type=ExternalName without failing.
 	AllowExternalName bool
+	// AllowExternalIPs permits Service spec.externalIPs without failing. This is
+	// independent of AllowExternalName (they are different mechanisms).
+	AllowExternalIPs bool
 	// CMKAnnotation is the PVC annotation key that references a customer key.
 	CMKAnnotation string
 	// EncryptionLabel is the PVC label/annotation key asserting encryption.
@@ -113,12 +127,16 @@ func Evaluate(resources []model.Resource, cfg Config) []Finding {
 	if cfg.euSet == nil {
 		cfg.build()
 	}
+	idx := buildSCIndex(resources)
 	var out []Finding
 	for _, r := range resources {
 		out = append(out, evalRegion(r, cfg)...)
 		out = append(out, evalEgress(r, cfg)...)
-		out = append(out, evalCMK(r, cfg)...)
-		out = append(out, evalEncryption(r, cfg)...)
+		out = append(out, evalCMK(r, cfg, idx)...)
+		out = append(out, evalEncryption(r, cfg, idx)...)
+	}
+	if cfg.RequireEgressPolicy {
+		out = append(out, evalEgressPolicyCoverage(resources)...)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].RuleID != out[j].RuleID {
@@ -153,12 +171,26 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 	// A workload is "pinned" only if it declares a positive, concrete region via
 	// nodeSelector or an In-nodeAffinity term. Exists/DoesNotExist/NotIn produce
 	// no concrete values, so they do not count as an EU pin.
-	if !pt.HasRegionConstraint || len(pt.RegionValues) == 0 {
-		if cfg.RequireRegion {
+	if !pt.HasRegionConstraint {
+		switch {
+		case cfg.ClusterRegion != "" && !cfg.isEU(cfg.ClusterRegion):
 			return []Finding{newFinding(r, RuleEURegion, Fail,
-				"no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term)")}
+				fmt.Sprintf("cluster region %q is not in-territory (declared via clusterRegion)", cfg.ClusterRegion))}
+		case cfg.ClusterRegion != "":
+			return []Finding{newFinding(r, RuleEURegion, Pass,
+				fmt.Sprintf("no workload pin; cluster region %q is in-territory", cfg.ClusterRegion))}
+		case cfg.RequireRegion:
+			return []Finding{newFinding(r, RuleEURegion, Fail,
+				"no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster)")}
+		default:
+			return []Finding{newFinding(r, RuleEURegion, Skip, "no region constraint declared (RequireRegion disabled)")}
 		}
-		return []Finding{newFinding(r, RuleEURegion, Skip, "no region constraint declared (RequireRegion disabled)")}
+	}
+	// Constrained but with an empty reachable set: nodeSelector and nodeAffinity
+	// intersect to nothing — the workload cannot schedule anywhere.
+	if len(pt.RegionValues) == 0 {
+		return []Finding{newFinding(r, RuleEURegion, Fail,
+			"region constraints are unsatisfiable (nodeSelector and nodeAffinity intersect to no region)")}
 	}
 	var nonEU []string
 	for _, v := range pt.RegionValues {
@@ -178,15 +210,13 @@ func evalEgress(r model.Resource, cfg Config) []Finding {
 	switch {
 	case r.Service != nil:
 		svc := r.Service
-		if !cfg.AllowExternalName {
-			if strings.EqualFold(svc.Type, "ExternalName") {
-				return []Finding{newFinding(r, RuleNoEgress, Fail,
-					fmt.Sprintf("Service proxies to external endpoint %q (potential extra-EU transfer)", svc.ExternalName))}
-			}
-			if len(svc.ExternalIPs) > 0 {
-				return []Finding{newFinding(r, RuleNoEgress, Fail,
-					fmt.Sprintf("Service exposes externalIPs %s (destination not verifiable as EU)", strings.Join(svc.ExternalIPs, ", ")))}
-			}
+		if !cfg.AllowExternalName && strings.EqualFold(svc.Type, "ExternalName") {
+			return []Finding{newFinding(r, RuleNoEgress, Fail,
+				fmt.Sprintf("Service proxies to external endpoint %q (potential extra-EU transfer)", svc.ExternalName))}
+		}
+		if !cfg.AllowExternalIPs && len(svc.ExternalIPs) > 0 {
+			return []Finding{newFinding(r, RuleNoEgress, Fail,
+				fmt.Sprintf("Service exposes externalIPs %s (destination not verifiable as EU)", strings.Join(svc.ExternalIPs, ", ")))}
 		}
 		return []Finding{newFinding(r, RuleNoEgress, Pass, "no external proxying")}
 	case r.NetworkPolicy != nil:
@@ -209,17 +239,54 @@ func evalEgress(r model.Resource, cfg Config) []Finding {
 	return nil
 }
 
-// isUnrestricted reports whether a CIDR is a default route (0.0.0.0/0 or ::/0),
-// which permits egress anywhere including outside the EEA.
+// evalEgressPolicyCoverage flags workload namespaces that have no
+// egress-governing NetworkPolicy. Kubernetes defaults to allow-all egress, so a
+// namespace with no egress policy has an open egress path — the absence of a
+// policy is itself the finding (there is no object to attach it to, so it is
+// reported at the namespace level). Opt-in via Config.RequireEgressPolicy.
+func evalEgressPolicyCoverage(resources []model.Resource) []Finding {
+	workloadNS := map[string]bool{}
+	egressNS := map[string]bool{}
+	for _, r := range resources {
+		ns := r.NamespaceOrDefault()
+		if r.PodTemplate != nil {
+			workloadNS[ns] = true
+		}
+		if r.NetworkPolicy != nil && r.NetworkPolicy.EgressControlled {
+			egressNS[ns] = true
+		}
+	}
+	names := make([]string, 0, len(workloadNS))
+	for ns := range workloadNS {
+		if !egressNS[ns] {
+			names = append(names, ns)
+		}
+	}
+	sort.Strings(names)
+	out := make([]Finding, 0, len(names))
+	for _, ns := range names {
+		out = append(out, Finding{
+			RuleID: RuleNoEgress, Status: Fail, Kind: "Namespace", Name: ns, Namespace: ns,
+			Message: "namespace has no egress-restricting NetworkPolicy (Kubernetes defaults to allow-all egress)",
+		})
+	}
+	return out
+}
+
+// isUnrestricted reports whether a CIDR is a default route or a default-route
+// half (prefix length 0 or 1). Flagging /1 catches the split-route bypass where
+// 0.0.0.0/1 + 128.0.0.0/1 (or ::/1 + 8000::/1) together cover the whole address
+// space while individually evading a /0-only check — and a lone /1 is itself far
+// too broad to count as restricted egress.
 func isUnrestricted(cidr string) bool {
 	p, err := netip.ParsePrefix(strings.TrimSpace(cidr))
 	if err != nil {
 		return false
 	}
-	return p.Bits() == 0
+	return p.Bits() <= 1
 }
 
-func evalCMK(r model.Resource, cfg Config) []Finding {
+func evalCMK(r model.Resource, cfg Config, idx scIndex) []Finding {
 	if r.PVC == nil {
 		return nil
 	}
@@ -227,19 +294,95 @@ func evalCMK(r model.Resource, cfg Config) []Finding {
 		return []Finding{newFinding(r, RuleCMK, Pass,
 			fmt.Sprintf("customer-managed key referenced (%s=%s)", cfg.CMKAnnotation, v))}
 	}
+	if sc, name, ok := idx.resolve(r.PVC.StorageClassName); ok && scHasCMK(sc) {
+		return []Finding{newFinding(r, RuleCMK, Pass,
+			fmt.Sprintf("StorageClass %q provisions with a customer-managed key", name))}
+	}
 	return []Finding{newFinding(r, RuleCMK, Fail,
-		fmt.Sprintf("no customer-managed key annotation (%s)", cfg.CMKAnnotation))}
+		fmt.Sprintf("no customer-managed key (annotation %s, or a StorageClass with a CMK parameter)", cfg.CMKAnnotation))}
 }
 
-func evalEncryption(r model.Resource, cfg Config) []Finding {
+func evalEncryption(r model.Resource, cfg Config, idx scIndex) []Finding {
 	if r.PVC == nil {
 		return nil
 	}
 	if isTrue(r.Labels[cfg.EncryptionLabel]) || isTrue(r.Annotations[cfg.EncryptionLabel]) {
 		return []Finding{newFinding(r, RuleEncryptedAt, Pass, "encryption at rest declared")}
 	}
+	if sc, name, ok := idx.resolve(r.PVC.StorageClassName); ok && scEncrypted(sc) {
+		return []Finding{newFinding(r, RuleEncryptedAt, Pass,
+			fmt.Sprintf("StorageClass %q provisions encrypted volumes", name))}
+	}
 	return []Finding{newFinding(r, RuleEncryptedAt, Fail,
-		fmt.Sprintf("encryption at rest not declared (label/annotation %s=true)", cfg.EncryptionLabel))}
+		fmt.Sprintf("encryption at rest not declared (label/annotation %s=true, or an encrypted StorageClass)", cfg.EncryptionLabel))}
 }
 
 func isTrue(s string) bool { return strings.EqualFold(strings.TrimSpace(s), "true") }
+
+// scIndex resolves a PVC to its StorageClass (or the cluster default).
+type scIndex struct {
+	byName  map[string]model.StorageClassSpec
+	def     *model.StorageClassSpec
+	defName string
+}
+
+func buildSCIndex(resources []model.Resource) scIndex {
+	idx := scIndex{byName: map[string]model.StorageClassSpec{}}
+	for _, r := range resources {
+		if r.StorageClass == nil {
+			continue
+		}
+		idx.byName[r.Name] = *r.StorageClass
+		if r.StorageClass.IsDefault {
+			sc := *r.StorageClass
+			idx.def = &sc
+			idx.defName = r.Name
+		}
+	}
+	return idx
+}
+
+// resolve returns the StorageClass a PVC will use: the named one, or the cluster
+// default when the name is empty. ok is false when it cannot be resolved (the SC
+// object was not in scope), in which case callers fall back to the annotation.
+func (idx scIndex) resolve(name string) (model.StorageClassSpec, string, bool) {
+	if name != "" {
+		sc, ok := idx.byName[name]
+		return sc, name, ok
+	}
+	if idx.def != nil {
+		return *idx.def, idx.defName, true
+	}
+	return model.StorageClassSpec{}, "", false
+}
+
+// cmkParamKeys are StorageClass parameter keys (lower-cased) that reference a
+// customer-managed key across the major CSI drivers (AWS EBS, Azure Disk, GCP PD).
+var cmkParamKeys = map[string]bool{
+	"kmskeyid":                true, // ebs.csi.aws.com
+	"diskencryptionsetid":     true, // disk.csi.azure.com
+	"disk-encryption-kms-key": true, // pd.csi.storage.gke.io
+	"kms-key-id":              true,
+	"encryptionkey":           true,
+}
+
+func scHasCMK(sc model.StorageClassSpec) bool {
+	for k, v := range sc.Parameters {
+		if cmkParamKeys[strings.ToLower(strings.TrimSpace(k))] && strings.TrimSpace(v) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func scEncrypted(sc model.StorageClassSpec) bool {
+	if scHasCMK(sc) { // a customer-managed key implies encryption at rest
+		return true
+	}
+	for k, v := range sc.Parameters {
+		if strings.EqualFold(strings.TrimSpace(k), "encrypted") && isTrue(v) {
+			return true
+		}
+	}
+	return false
+}

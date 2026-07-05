@@ -47,9 +47,11 @@ jobs:
 
       - name: wait for the admission webhook / constraints to be active
         run: |
-          # Retry a known-bad pod until admission actually rejects it (webhook + policy sync can lag).
+          # Retry until admission actually rejects the pod WITH a Regionlock denial —
+          # not merely any apply error (which could be a transient webhook hiccup or,
+          # on Gatekeeper, constraint-sync lag).
           for i in $(seq 1 30); do
-            if ! kubectl apply -n shop -f demo/manifests/violating-pod.yaml >/tmp/deny.txt 2>&1; then
+            if ! kubectl apply -n shop -f demo/manifests/violating-pod.yaml >/tmp/deny.txt 2>&1 && grep -qi BLOCKED /tmp/deny.txt; then
               echo "enforcement active after ${i} attempt(s)"; cat /tmp/deny.txt; break
             fi
             kubectl delete -n shop pod checkout-us --ignore-not-found >/dev/null 2>&1

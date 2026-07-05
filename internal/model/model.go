@@ -25,6 +25,9 @@ type Resource struct {
 	// PVC is set only when Kind == "PersistentVolumeClaim".
 	PVC *PVCSpec `json:"pvc,omitempty"`
 
+	// StorageClass is set only when Kind == "StorageClass".
+	StorageClass *StorageClassSpec `json:"storageClass,omitempty"`
+
 	// NetworkPolicy is set only when Kind == "NetworkPolicy".
 	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
 
@@ -76,6 +79,14 @@ type PVCSpec struct {
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
+// StorageClassSpec captures the StorageClass fields that reveal whether volumes
+// provisioned from it are encrypted and use a customer-managed key.
+type StorageClassSpec struct {
+	Provisioner string            `json:"provisioner,omitempty"`
+	Parameters  map[string]string `json:"parameters,omitempty"`
+	IsDefault   bool              `json:"isDefault,omitempty"`
+}
+
 // NetworkPolicySpec captures the egress destinations a NetworkPolicy permits.
 type NetworkPolicySpec struct {
 	// EgressCIDRs is the flattened list of ipBlock.cidr entries across all
@@ -84,4 +95,8 @@ type NetworkPolicySpec struct {
 	// Unrestricted is true when any egress rule has no peer selector (empty or
 	// absent `to`), which permits egress to every destination.
 	Unrestricted bool `json:"unrestricted,omitempty"`
+	// EgressControlled is true when this NetworkPolicy governs egress at all
+	// (declares Egress in policyTypes or defines egress rules). Used to detect
+	// namespaces with no egress policy (Kubernetes defaults to allow-all egress).
+	EgressControlled bool `json:"egressControlled,omitempty"`
 }

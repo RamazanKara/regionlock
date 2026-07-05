@@ -1,7 +1,7 @@
 {
   "tool": "regionlock",
-  "version": "1.0.0",
-  "generatedAt": "2026-07-05T08:45:27Z",
+  "version": "0.3.0",
+  "generatedAt": "2026-07-05T09:17:29Z",
   "source": "testdata/violating",
   "ruleset": {
     "id": "eu-data-residency-v1",
@@ -121,7 +121,7 @@
       "kind": "PersistentVolumeClaim",
       "name": "orders-data",
       "namespace": "shop",
-      "message": "no customer-managed key annotation (regionlock.io/cmk-key-id)",
+      "message": "no customer-managed key (annotation regionlock.io/cmk-key-id, or a StorageClass with a CMK parameter)",
       "source": "testdata\\violating\\workloads.yaml#2",
       "articles": [
         {
@@ -140,7 +140,7 @@
       "kind": "PersistentVolumeClaim",
       "name": "orders-data",
       "namespace": "shop",
-      "message": "encryption at rest not declared (label/annotation regionlock.io/encrypted=true)",
+      "message": "encryption at rest not declared (label/annotation regionlock.io/encrypted=true, or an encrypted StorageClass)",
       "source": "testdata\\violating\\workloads.yaml#2",
       "articles": [
         {
@@ -221,7 +221,7 @@
       "kind": "StatefulSet",
       "name": "sessions",
       "namespace": "shop",
-      "message": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term)",
+      "message": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term, or set clusterRegion for a single-region cluster)",
       "source": "testdata\\violating\\workloads.yaml#1",
       "articles": [
         {
@@ -347,6 +347,6 @@
   ],
   "integrity": {
     "algorithm": "sha256",
-    "digest": "ad78417e68dafcb2f2018c00ab3257936c43e7c822a4b5d227cc0ae319710523"
+    "digest": "ee893fdb6a0e7711ae442c476a0418a6b63ffecd054492dd66d8b9ded1729bc2"
   }
 }

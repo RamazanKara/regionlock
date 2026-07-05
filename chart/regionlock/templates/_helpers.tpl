@@ -47,10 +47,27 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{ `{{ length(request.object.spec.externalIPs || '') }}` }}
 {{- end -}}
 
-{{/* Count of egress CIDRs that are a default route (/0 suffix, any spelling).
-     The pipe resets the projection so the filter's @ binds to each CIDR string. */}}
+{{/* Count of egress CIDRs that are a default route (/0) or default-route half
+     (/1 — catches the 0.0.0.0/1 + 128.0.0.0/1 split that together cover the whole
+     space). The pipe resets the projection so the filter's @ binds to each CIDR. */}}
 {{- define "regionlock.openEgressCount" -}}
-{{ `{{ length(request.object.spec.egress[].to[].ipBlock.cidr | [?ends_with(@, '/0')] || '') }}` }}
+{{ `{{ length(request.object.spec.egress[].to[].ipBlock.cidr | [?ends_with(@, '/0') || ends_with(@, '/1')] || '') }}` }}
+{{- end -}}
+
+{{/* PVC's storageClassName (or '' when absent). */}}
+{{- define "regionlock.storageClassName" -}}
+{{ `{{ request.object.spec.storageClassName || '' }}` }}
+{{- end -}}
+
+{{/* The CMK annotation value (or '') — the annotation key is injected between two
+     literal-brace fragments so the dynamic key lands inside the JMESPath. */}}
+{{- define "regionlock.cmkAnnotationExpr" -}}
+{{ `{{ request.object.metadata.annotations."` }}{{ .Values.cmkAnnotation }}{{ `" || '' }}` }}
+{{- end -}}
+
+{{/* The encryption label value (or ''). */}}
+{{- define "regionlock.encryptionLabelExpr" -}}
+{{ `{{ request.object.metadata.labels."` }}{{ .Values.encryptionLabel }}{{ `" || '' }}` }}
 {{- end -}}
 
 {{/* Total egress rules, and egress rules that have a peer selector (`to`). */}}
@@ -59,6 +76,19 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{- end -}}
 {{- define "regionlock.egressWithPeersCount" -}}
 {{ `{{ length(request.object.spec.egress[?to] || '') }}` }}
+{{- end -}}
+
+{{/*
+Constraint hook annotations. Gatekeeper reconciles a ConstraintTemplate into its
+backing CRD asynchronously, so a Constraint CR applied in the same pass fails with
+"no matches for kind". Applying Constraints as post-install/post-upgrade hooks
+lets the ConstraintTemplate CRDs become Established first. On uninstall, deleting
+the ConstraintTemplate (a normal release resource) cascade-removes the Constraint.
+*/}}
+{{- define "regionlock.constraintHookAnnotations" -}}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "5"
+helm.sh/hook-delete-policy: before-hook-creation
 {{- end -}}
 
 {{/*

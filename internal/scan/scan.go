@@ -21,6 +21,19 @@ import (
 // region. Regionlock reads placement intent from it.
 const RegionKey = "topology.kubernetes.io/region"
 
+// regionKeys are the label keys recognized as carrying the cloud region — the
+// current well-known key plus the deprecated (but still widely present) beta key.
+var regionKeys = []string{RegionKey, "failure-domain.beta.kubernetes.io/region"}
+
+func isRegionKey(k string) bool {
+	for _, rk := range regionKeys {
+		if k == rk {
+			return true
+		}
+	}
+	return false
+}
+
 // podSpecPath maps a workload kind to the sequence of keys that locates its pod
 // spec within the object. Non-workload kinds are absent.
 var podSpecPath = map[string][]string{
@@ -109,7 +122,7 @@ func ParseBytes(b []byte, source string) ([]model.Resource, error) {
 }
 
 // clusterKinds is the set of resources scanned from a live cluster.
-const clusterKinds = "pods,deployments,statefulsets,daemonsets,replicasets,jobs,cronjobs,persistentvolumeclaims,services,networkpolicies"
+const clusterKinds = "pods,deployments,statefulsets,daemonsets,replicasets,jobs,cronjobs,persistentvolumeclaims,storageclasses,services,networkpolicies"
 
 // kubectlArgs builds the argv for the live-cluster scan.
 func kubectlArgs(kubeconfig, kctx string) []string {
@@ -191,6 +204,14 @@ func extract(doc map[string]any, source string) (model.Resource, bool) {
 	case "PersistentVolumeClaim":
 		spec := mapAt(doc, "spec")
 		r.PVC = &model.PVCSpec{StorageClassName: strAt(spec, "storageClassName")}
+	case "StorageClass":
+		// StorageClass fields are top-level, not under spec.
+		r.StorageClass = &model.StorageClassSpec{
+			Provisioner: strAt(doc, "provisioner"),
+			Parameters:  strMap(mapAt(doc, "parameters")),
+			IsDefault: strings.EqualFold(r.Annotations["storageclass.kubernetes.io/is-default-class"], "true") ||
+				strings.EqualFold(r.Annotations["storageclass.beta.kubernetes.io/is-default-class"], "true"),
+		}
 	case "NetworkPolicy":
 		r.NetworkPolicy = extractNetworkPolicy(mapAt(doc, "spec"))
 	}
@@ -198,61 +219,134 @@ func extract(doc map[string]any, source string) (model.Resource, bool) {
 	return r, true
 }
 
+// extractPodTemplate computes the set of regions a workload could actually
+// schedule into, honoring Kubernetes AND/OR semantics:
+//   - nodeSelector region is an equality (a hard AND constraint).
+//   - required nodeAffinity nodeSelectorTerms are ORed; matchExpressions within
+//     a term are ANDed; In-values within one expression are ORed.
+//   - Only operator "In" positively pins a region (NotIn/Exists/DoesNotExist do
+//     not name a concrete allowed region).
+//
+// The effective reachable set is the INTERSECTION of the constrained sources.
+// HasRegionConstraint means the workload is positively constrained to a concrete
+// set; an empty set on a constrained workload means the constraints are
+// unsatisfiable (nowhere to schedule).
 func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 	pt := &model.PodTemplate{NodeSelector: strMap(mapAt(pod, "nodeSelector"))}
 
-	seen := map[string]bool{}
-	add := func(v string) {
-		v = strings.TrimSpace(v)
-		if v == "" || seen[v] {
-			return
+	// nodeSelector region equality → a singleton constraint set.
+	var nsSet map[string]bool
+	for _, key := range regionKeys {
+		if v, ok := pt.NodeSelector[key]; ok && strings.TrimSpace(v) != "" {
+			nsSet = map[string]bool{strings.TrimSpace(v): true}
+			break
 		}
-		seen[v] = true
-		pt.RegionValues = append(pt.RegionValues, v)
 	}
 
-	// nodeSelector on the region key is an equality — a positive region pin.
-	if v, ok := pt.NodeSelector[RegionKey]; ok && strings.TrimSpace(v) != "" {
-		pt.HasRegionConstraint = true
-		add(v)
-	}
-
-	// requiredDuringScheduling nodeAffinity matchExpressions on the region key.
-	// Only operator "In" with concrete values positively pins the workload to a
-	// region. NotIn/Exists/DoesNotExist do NOT pin to a concrete allowed region,
-	// so they must not be recorded as EU evidence (else a "NotIn eu-central-1"
-	// term would be misread as an EU pin).
+	// required nodeAffinity. Affinity constrains the region only if EVERY term
+	// declares a region In-expression — otherwise a term with no region
+	// constraint lets the pod schedule in any region (OR semantics).
+	var affSet map[string]bool
 	terms := sliceAt(mapAt(pod, "affinity", "nodeAffinity", "requiredDuringSchedulingIgnoredDuringExecution"), "nodeSelectorTerms")
-	for _, t := range terms {
-		tm, ok := t.(map[string]any)
-		if !ok {
+	if len(terms) > 0 {
+		union := map[string]bool{}
+		allTermsConstrained := true
+		for _, t := range terms {
+			tm, _ := t.(map[string]any)
+			termSet, has := termRegionSet(tm)
+			if !has {
+				allTermsConstrained = false
+				continue
+			}
+			for r := range termSet {
+				union[r] = true
+			}
+		}
+		if allTermsConstrained {
+			affSet = union
+		}
+	}
+
+	var effective map[string]bool
+	switch {
+	case nsSet != nil && affSet != nil:
+		effective = intersectSets(nsSet, affSet)
+	case nsSet != nil:
+		effective = nsSet
+	case affSet != nil:
+		effective = affSet
+	}
+	if effective != nil {
+		pt.HasRegionConstraint = true
+		pt.RegionValues = sortedKeys(effective)
+	}
+	return pt
+}
+
+// termRegionSet returns the region set a single nodeSelectorTerm allows (the
+// intersection of its region In-expressions, since matchExpressions are ANDed),
+// and whether the term declared any region In-expression at all.
+func termRegionSet(tm map[string]any) (map[string]bool, bool) {
+	var set map[string]bool
+	has := false
+	for _, e := range sliceAt(tm, "matchExpressions") {
+		em, ok := e.(map[string]any)
+		if !ok || !isRegionKey(strAt(em, "key")) || strAt(em, "operator") != "In" {
 			continue
 		}
-		for _, e := range sliceAt(tm, "matchExpressions") {
-			em, ok := e.(map[string]any)
-			if !ok {
-				continue
-			}
-			if strAt(em, "key") != RegionKey {
-				continue
-			}
-			vals := strSlice(sliceAt(em, "values"))
-			if strAt(em, "operator") == "In" && len(vals) > 0 {
-				pt.HasRegionConstraint = true
-				for _, v := range vals {
-					add(v)
-				}
+		vals := strSlice(sliceAt(em, "values"))
+		if len(vals) == 0 {
+			continue
+		}
+		has = true
+		vs := map[string]bool{}
+		for _, v := range vals {
+			if s := strings.TrimSpace(v); s != "" {
+				vs[s] = true
 			}
 		}
+		if set == nil {
+			set = vs
+		} else {
+			set = intersectSets(set, vs) // two region exprs in one term are ANDed
+		}
 	}
+	return set, has
+}
 
-	sort.Strings(pt.RegionValues)
-	return pt
+func intersectSets(a, b map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for k := range a {
+		if b[k] {
+			out[k] = true
+		}
+	}
+	return out
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func extractNetworkPolicy(spec map[string]any) *model.NetworkPolicySpec {
 	np := &model.NetworkPolicySpec{}
-	for _, e := range sliceAt(spec, "egress") {
+	egress := sliceAt(spec, "egress")
+	// A NetworkPolicy governs egress if it declares Egress in policyTypes or
+	// defines any egress rule.
+	for _, pt := range strSlice(sliceAt(spec, "policyTypes")) {
+		if strings.EqualFold(pt, "Egress") {
+			np.EgressControlled = true
+		}
+	}
+	if len(egress) > 0 {
+		np.EgressControlled = true
+	}
+	for _, e := range egress {
 		em, ok := e.(map[string]any)
 		if !ok {
 			continue

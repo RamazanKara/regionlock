@@ -164,6 +164,81 @@ spec:
 	}
 }
 
+// helper: parse a single Pod and return its effective region set + constrained flag.
+func podRegions(t *testing.T, spec string) ([]string, bool) {
+	t.Helper()
+	y := "apiVersion: v1\nkind: Pod\nmetadata: { name: p, namespace: shop }\nspec:\n" + spec
+	rs, err := ParseBytes([]byte(y), "t.yaml")
+	if err != nil || len(rs) != 1 || rs[0].PodTemplate == nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	return rs[0].PodTemplate.RegionValues, rs[0].PodTemplate.HasRegionConstraint
+}
+
+func TestRegionAndOrSemantics(t *testing.T) {
+	// nodeSelector AND affinity In-superset => intersection is the nodeSelector region (compliant).
+	vals, con := podRegions(t, `
+  nodeSelector: { topology.kubernetes.io/region: eu-central-1 }
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [eu-central-1, us-east-1] }
+  containers: [{ name: c, image: nginx }]`)
+	if !con || len(vals) != 1 || vals[0] != "eu-central-1" {
+		t.Fatalf("nodeSelector∩affinity should be {eu-central-1}, got %v (constrained=%v)", vals, con)
+	}
+
+	// Two ANDing region exprs in ONE term with disjoint sets => unsatisfiable (empty).
+	vals, con = podRegions(t, `
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [eu-central-1] }
+              - { key: topology.kubernetes.io/region, operator: In, values: [us-east-1] }
+  containers: [{ name: c, image: nginx }]`)
+	if !con || len(vals) != 0 {
+		t.Fatalf("disjoint ANDed region exprs should be constrained+empty (unsatisfiable), got %v (constrained=%v)", vals, con)
+	}
+
+	// OR across terms => union (any reachable).
+	vals, _ = podRegions(t, `
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [eu-central-1] }
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [us-east-1] }
+  containers: [{ name: c, image: nginx }]`)
+	got := map[string]bool{}
+	for _, v := range vals {
+		got[v] = true
+	}
+	if !got["eu-central-1"] || !got["us-east-1"] {
+		t.Fatalf("OR terms should union to both regions, got %v", vals)
+	}
+
+	// A term with NO region expr means affinity does not constrain region (OR escape hatch).
+	_, con = podRegions(t, `
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [eu-central-1] }
+          - matchExpressions:
+              - { key: disktype, operator: In, values: [ssd] }
+  containers: [{ name: c, image: nginx }]`)
+	if con {
+		t.Fatalf("a term without a region expr should leave the workload unconstrained on region")
+	}
+}
+
 func TestPreferredAffinityIsNotAHardPin(t *testing.T) {
 	// preferredDuringScheduling is a soft hint; it must NOT be read as a
 	// guaranteed EU pin (the pod can still schedule anywhere).
@@ -185,6 +260,15 @@ spec:
 	pt := rs[0].PodTemplate
 	if pt == nil || pt.HasRegionConstraint || len(pt.RegionValues) != 0 {
 		t.Fatalf("preferred affinity must not count as a hard region pin: %+v", pt)
+	}
+}
+
+func TestLegacyRegionLabelRecognized(t *testing.T) {
+	vals, con := podRegions(t, `
+  nodeSelector: { failure-domain.beta.kubernetes.io/region: eu-central-1 }
+  containers: [{ name: c, image: nginx }]`)
+	if !con || len(vals) != 1 || vals[0] != "eu-central-1" {
+		t.Fatalf("legacy region label should be recognized, got %v (constrained=%v)", vals, con)
 	}
 }
 

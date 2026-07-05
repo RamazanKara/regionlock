@@ -6,12 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-07-05
-
-First stable release. The CLI, report/ruleset JSON schemas, rule IDs, and chart values are
-now a versioned public API — see [docs/stability.md](docs/stability.md).
+## [0.3.0] — 2026-07-05
 
 ### Added
+- **Cluster-region mode** (`clusterRegion` / `--cluster-region`): on a single-region cluster,
+  unpinned workloads pass without per-pod labels, while an explicit non-EU pin still fails.
+- **StorageClass-aware CMK & encryption**: a PVC satisfies the controls if its StorageClass
+  carries a CMK parameter (`kmsKeyId`/`diskEncryptionSetID`/`disk-encryption-kms-key`) or
+  `encrypted: "true"` — not only the bespoke annotation. The chart mirrors this via an
+  `approvedStorageClasses` name allow-list.
+- **Default-allow egress detection** (`requireEgressPolicy`, opt-in): flags workload
+  namespaces with no egress-restricting NetworkPolicy.
+- **`allowExternalIPs`** as a distinct knob (decoupled from `allowExternalName`); the legacy
+  `failure-domain.beta.kubernetes.io/region` label is now recognized.
 - **Controller-level enforcement parity**: both engines now block non-EU pods created by
   Deployments/StatefulSets/DaemonSets/ReplicaSets/Jobs/CronJobs, not just bare Pods
   (Kyverno via autogen; Gatekeeper via a kind-dispatched pod spec). Validated by CI.
@@ -23,8 +30,18 @@ now a versioned public API — see [docs/stability.md](docs/stability.md).
 - Ruleset invariant test (every bundled ruleset well-formed and mapping exactly the engine
   rule IDs); `NOTICE`; `docs/stability.md`.
 
-### Fixed
+### Fixed (from adversarial review)
+- **Region AND/OR semantics**: nodeSelector and required nodeAffinity are now intersected
+  (AND), not unioned — so an EU-only workload constrained via both is no longer a false fail;
+  an unsatisfiable intersection is flagged.
+- **externalIPs** enforcement is no longer silently disabled by `allowExternalName`.
+- **Split default routes** (`0.0.0.0/1 + 128.0.0.0/1`) are now caught (prefix ≤ /1), in the
+  CLI and both engines.
+- **Gatekeeper install race fixed**: Constraints apply as post-install/upgrade hooks so their
+  ConstraintTemplate CRDs are Established first (`helm install --set engine=gatekeeper` no
+  longer fails with "no matches for kind").
 - `preferredDuringScheduling` nodeAffinity (a soft hint) is not treated as a hard EU pin.
+- Engine-aware post-install NOTES; docs no longer over-claim byte-identical engine parity.
 
 ## [0.2.0] — 2026-07-05
 

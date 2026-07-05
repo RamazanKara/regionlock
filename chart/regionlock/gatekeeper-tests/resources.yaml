@@ -1,9 +1,9 @@
-# Test resources for `gator test` against the rendered Gatekeeper policies.
-# Expected: exactly 9 violations. Violating: pod-us (nodeSelector non-EU),
-# pod-none (no region), pod-aff-us (nodeAffinity non-EU), pvc-bad (cmk+enc = 2),
-# ext (ExternalName), svc-extip (externalIPs), open-egress (0.0.0.0/0),
-# np-empty-to (allow-all). Clean: pod-eu, pod-aff-eu, pvc-good.
-# Exercised by the `gatekeeper` CI job.
+# Test resources for `gator test` (and `kyverno apply`) against the rendered
+# policies. Expected: exactly 13 violations. Region (6): pod-us, pod-aff-us,
+# pod-none, dep-us, dep-aff-us, cj-us. Egress (5): ext (ExternalName),
+# svc-extip (externalIPs), open-egress (0.0.0.0/0), np-empty-to (allow-all),
+# np-split (0.0.0.0/1 + 128.0.0.0/1). PVC (2): pvc-bad (cmk + encryption).
+# Clean: pod-eu, pod-aff-eu, dep-eu, pvc-good. Exercised by the CI jobs.
 apiVersion: v1
 kind: Pod
 metadata: { name: pod-us, namespace: shop }
@@ -106,6 +106,19 @@ spec:
           nodeSelector: { topology.kubernetes.io/region: us-east-1 }
           restartPolicy: Never
           containers: [{ name: c, image: nginx }]
+---
+# Split default route: 0.0.0.0/1 + 128.0.0.0/1 cover the whole space but neither
+# ends in /0 — must still be blocked via the /1 check.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: np-split, namespace: shop }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/1 }
+        - ipBlock: { cidr: 128.0.0.0/1 }
 ---
 apiVersion: v1
 kind: Pod

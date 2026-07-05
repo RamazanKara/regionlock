@@ -27,9 +27,18 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: PersistentVolumeClaim must be annotated with a customer-managed key ({{ .Values.cmkAnnotation }}) [GDPR Art. 32]
-        pattern:
-          metadata:
-            annotations:
-              {{ .Values.cmkAnnotation | quote }}: "?*"
+          BLOCKED: PersistentVolumeClaim must reference a customer-managed key — annotate {{ .Values.cmkAnnotation }} or use an approved StorageClass [GDPR Art. 32]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.cmkAnnotationExpr" . | quote }}
+                operator: Equals
+                value: ""
+              - key: {{ include "regionlock.storageClassName" . | quote }}
+                operator: AnyNotIn
+                value:
+                {{- if .Values.approvedStorageClasses }}
+                {{- toYaml .Values.approvedStorageClasses | nindent 18 }}
+                {{- else }} []
+                {{- end }}
 {{- end }}
