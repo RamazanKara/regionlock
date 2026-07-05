@@ -1,0 +1,79 @@
+name: "Regionlock"
+description: "Enforce & evidence EU data-residency on your Kubernetes manifests in CI"
+author: "Ramazan Kara"
+branding:
+  icon: "lock"
+  color: "blue"
+
+inputs:
+  manifests:
+    description: "Directory of Kubernetes manifests to scan"
+    required: true
+    default: "."
+  regulation:
+    description: "Regulation ruleset id (eu-data-residency-v1, de-data-residency-v1, ch-fadp-v1)"
+    required: false
+    default: "eu-data-residency-v1"
+  fail-on:
+    description: "Which violations fail the build: any | high"
+    required: false
+    default: "high"
+  version:
+    description: "regionlock version tag, or 'latest'"
+    required: false
+    default: "latest"
+  sarif:
+    description: "Path to write a SARIF file (empty string to skip)"
+    required: false
+    default: "regionlock.sarif"
+  config:
+    description: "Path to a regionlock.yaml config (optional)"
+    required: false
+    default: ""
+
+outputs:
+  sarif:
+    description: "Path to the generated SARIF file"
+    value: ${{ steps.run.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - id: install
+      shell: bash
+      run: |
+        set -uo pipefail
+        ver="${{ inputs.version }}"
+        base="https://github.com/RamazanKara/regionlock/releases"
+        if [ "$ver" = "latest" ]; then
+          url="$base/latest/download/regionlock_linux_amd64.tar.gz"
+        else
+          url="$base/download/$ver/regionlock_linux_amd64.tar.gz"
+        fi
+        echo "Fetching $url"
+        if curl -fsSL "$url" -o /tmp/rl.tgz; then
+          tar -xzf /tmp/rl.tgz -C /tmp regionlock
+          sudo mv /tmp/regionlock /usr/local/bin/regionlock
+        elif command -v go >/dev/null 2>&1; then
+          echo "Release asset unavailable; building from source with go install"
+          ref="$ver"; [ "$ver" = "latest" ] && ref="latest"
+          go install "github.com/RamazanKara/regionlock/cmd/regionlock@$ref"
+          sudo cp "$(go env GOPATH)/bin/regionlock" /usr/local/bin/regionlock
+        else
+          echo "::error::could not install regionlock (no release asset and no Go toolchain)"; exit 1
+        fi
+        regionlock version
+
+    - id: run
+      shell: bash
+      run: |
+        set -uo pipefail
+        cfg=""
+        [ -n "${{ inputs.config }}" ] && cfg="--config ${{ inputs.config }}"
+        if [ -n "${{ inputs.sarif }}" ]; then
+          outdir="$(dirname "${{ inputs.sarif }}")"; [ -z "$outdir" ] && outdir="."
+          regionlock report --manifests "${{ inputs.manifests }}" --regulation "${{ inputs.regulation }}" $cfg --format sarif --out "$outdir" || true
+          mv "$outdir/regionlock-evidence.sarif" "${{ inputs.sarif }}" 2>/dev/null || true
+          echo "sarif=${{ inputs.sarif }}" >> "$GITHUB_OUTPUT"
+        fi
+        regionlock lint --manifests "${{ inputs.manifests }}" --regulation "${{ inputs.regulation }}" $cfg --fail-on "${{ inputs.fail-on }}"

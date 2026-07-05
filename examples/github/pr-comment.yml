@@ -1,0 +1,52 @@
+# Comment the data-residency delta of a PR: what this change newly violates or
+# resolves, compared to the base branch. Uses `regionlock diff`.
+name: residency-diff
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - run: go install github.com/RamazanKara/regionlock/cmd/regionlock@latest
+
+      - name: Baseline (base branch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - run: regionlock report --manifests ./k8s --format json --out /tmp/base || true
+
+      - name: Current (PR head)
+        uses: actions/checkout@v4
+      - run: regionlock report --manifests ./k8s --format json --out /tmp/cur || true
+
+      - name: Compute delta
+        run: |
+          regionlock diff --baseline /tmp/base/regionlock-evidence.json \
+                          --current /tmp/cur/regionlock-evidence.json \
+                          --format md --out /tmp/comment.md || true
+
+      - name: Upsert PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/comment.md', 'utf8');
+            const marker = '<!-- regionlock-diff -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            const full = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body: full });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: full });
+            }

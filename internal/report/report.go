@@ -277,7 +277,7 @@ func (r Report) Console() string {
 		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%s\n",
 			rc.RuleID, rc.Severity, rc.Pass, rc.Fail, rc.Skip, articleList(rc.Articles))
 	}
-	tw.Flush()
+	_ = tw.Flush()
 
 	if r.Summary.Fail > 0 {
 		fmt.Fprintf(&b, "\nFailures:\n")

@@ -1,0 +1,50 @@
+# Test resources for `gator test` against the rendered Gatekeeper policies.
+# The three "bad" workloads plus the ExternalName Service, open NetworkPolicy,
+# and un-annotated PVC should produce exactly 6 violations; pod-eu and pvc-good
+# should produce none. Exercised by the `gatekeeper` CI job.
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-us, namespace: shop }
+spec:
+  nodeSelector: { topology.kubernetes.io/region: us-east-1 }
+  containers: [{ name: c, image: nginx }]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-none, namespace: shop }
+spec:
+  containers: [{ name: c, image: nginx }]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-eu, namespace: shop }
+spec:
+  nodeSelector: { topology.kubernetes.io/region: eu-central-1 }
+  containers: [{ name: c, image: nginx }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: pvc-bad, namespace: shop }
+spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 1Gi } } }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-good
+  namespace: shop
+  labels: { regionlock.io/encrypted: "true" }
+  annotations: { regionlock.io/cmk-key-id: arn:kms:key/1 }
+spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 1Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: ext, namespace: shop }
+spec: { type: ExternalName, externalName: x.us.example.com }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: open-egress, namespace: shop }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress: [{ to: [{ ipBlock: { cidr: 0.0.0.0/0 } }] }]

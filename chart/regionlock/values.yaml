@@ -1,5 +1,11 @@
-# -- How Kyverno reacts to a violation: "Enforce" blocks admission, "Audit"
-# only records a policy report. Start with Audit, then flip to Enforce.
+# -- Policy engine to render for: "kyverno", "gatekeeper", or "both".
+# Kyverno and OPA/Gatekeeper produce equivalent enforcement; pick what your
+# cluster already runs.
+engine: kyverno
+
+# -- How the engine reacts to a violation: "Enforce" blocks admission, "Audit"
+# only records/dry-runs. Mapped to Kyverno (Enforce/Audit) and Gatekeeper
+# (deny/dryrun) automatically. Start with Audit, then flip to Enforce.
 enforcementAction: Enforce
 
 # -- Fail workloads that declare no region constraint at all (via nodeSelector

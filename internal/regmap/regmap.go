@@ -8,10 +8,24 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 )
 
 //go:embed data/eu-data-residency-v1.json
 var euDataResidencyV1 []byte
+
+//go:embed data/de-data-residency-v1.json
+var deDataResidencyV1 []byte
+
+//go:embed data/ch-fadp-v1.json
+var chFADPV1 []byte
+
+// rulesets is the registry of bundled rulesets, keyed by id.
+var rulesets = map[string][]byte{
+	"eu-data-residency-v1": euDataResidencyV1,
+	"de-data-residency-v1": deDataResidencyV1,
+	"ch-fadp-v1":           chFADPV1,
+}
 
 // DefaultRuleset is the ruleset used when none is specified.
 const DefaultRuleset = "eu-data-residency-v1"
@@ -39,30 +53,38 @@ type RuleMapping struct {
 
 // Ruleset is a versioned collection of rule-to-regulation mappings.
 type Ruleset struct {
-	ID           string        `json:"id"`
-	Version      string        `json:"version"`
-	Title        string        `json:"title"`
-	Jurisdiction string        `json:"jurisdiction"`
-	Updated      string        `json:"updated"`
-	Notes        string        `json:"notes"`
-	Rules        []RuleMapping `json:"rules"`
+	ID           string `json:"id"`
+	Version      string `json:"version"`
+	Title        string `json:"title"`
+	Jurisdiction string `json:"jurisdiction"`
+	Updated      string `json:"updated"`
+	Notes        string `json:"notes"`
+	// Regions is the allow-list of cloud region identifiers this jurisdiction
+	// considers in-territory. When set, the CLI uses it as the region baseline
+	// for `--regulation <id>` (config/flags still override).
+	Regions []string      `json:"regions,omitempty"`
+	Rules   []RuleMapping `json:"rules"`
 
 	byID map[string]RuleMapping
 }
 
-// Available lists the ruleset IDs bundled in this binary.
-func Available() []string { return []string{DefaultRuleset} }
+// Available lists the ruleset IDs bundled in this binary, sorted.
+func Available() []string {
+	ids := make([]string, 0, len(rulesets))
+	for id := range rulesets {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
 
 // Load returns the ruleset with the given id. An empty id selects the default.
 func Load(id string) (*Ruleset, error) {
 	if id == "" {
 		id = DefaultRuleset
 	}
-	var raw []byte
-	switch id {
-	case DefaultRuleset:
-		raw = euDataResidencyV1
-	default:
+	raw, ok := rulesets[id]
+	if !ok {
 		return nil, fmt.Errorf("unknown regulation ruleset %q (available: %v)", id, Available())
 	}
 	var rs Ruleset

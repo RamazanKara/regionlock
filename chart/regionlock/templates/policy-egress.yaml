@@ -1,4 +1,4 @@
-{{- if .Values.policies.noNonEuEgress }}
+{{- if and (has .Values.engine (list "kyverno" "both")) .Values.policies.noNonEuEgress }}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:

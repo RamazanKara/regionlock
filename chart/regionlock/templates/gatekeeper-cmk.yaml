@@ -1,0 +1,50 @@
+{{- if and (has .Values.engine (list "gatekeeper" "both")) .Values.policies.customerManagedKey }}
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlockcmk
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: customer-managed-key
+    regionlock.io/articles: "GDPR Art. 32"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockCmk
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            cmkAnnotation:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlockcmk
+
+        violation[{"msg": msg}] {
+          ann := object.get(input.review.object.metadata, "annotations", {})
+          val := object.get(ann, input.parameters.cmkAnnotation, "")
+          val == ""
+          msg := sprintf("BLOCKED: PersistentVolumeClaim missing customer-managed key annotation %v [GDPR Art. 32]", [input.parameters.cmkAnnotation])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockCmk
+metadata:
+  name: regionlock-customer-managed-key
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+spec:
+  enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["PersistentVolumeClaim"]
+    {{- with .Values.excludeNamespaces }}
+    excludedNamespaces:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  parameters:
+    cmkAnnotation: {{ .Values.cmkAnnotation | quote }}
+{{- end }}

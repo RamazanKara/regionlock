@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a control, jurisdiction, or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - New jurisdiction / regulation ruleset
+        - New control / rule
+        - New output format or integration
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: detail
+    attributes:
+      label: Details
+      description: For a jurisdiction, list the in-territory regions and the article citations.

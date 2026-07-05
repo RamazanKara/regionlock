@@ -1,0 +1,61 @@
+{
+  "id": "de-data-residency-v1",
+  "version": "1.0.0",
+  "title": "Germany Data Residency Baseline (GDPR + BDSG)",
+  "jurisdiction": "Germany",
+  "updated": "2026-07-05",
+  "notes": "Constrains placement to German cloud regions and evidences GDPR plus the German Bundesdatenschutzgesetz (BDSG). Suited to public-sector, healthcare and DACH enterprise workloads that must remain in-country. Evidence of technical/organizational controls, not a cryptographic data-path proof.",
+  "regions": [
+    "eu-central-1",
+    "europe-west3",
+    "europe-west10",
+    "germanywestcentral",
+    "germanynorth"
+  ],
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to a German region",
+      "description": "Every workload declares node placement constrained to an allow-listed German cloud region (Frankfurt/Berlin) via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "Placement outside Germany can move data abroad; German public-sector and regulated workloads frequently require in-country residency.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 44", "title": "General principle for transfers", "url": "https://gdpr-info.eu/art-44-gdpr/" },
+        { "regulation": "BDSG", "article": "§ 1", "title": "Scope of the Federal Data Protection Act", "url": "https://www.gesetze-im-internet.de/bdsg_2018/__1.html" }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or extra-territorial egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress.",
+      "severity": "high",
+      "rationale": "Open egress can move personal data outside Germany without a transfer safeguard.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 44", "title": "General principle for transfers", "url": "https://gdpr-info.eu/art-44-gdpr/" },
+        { "regulation": "GDPR", "article": "Art. 46", "title": "Transfers subject to appropriate safeguards", "url": "https://gdpr-info.eu/art-46-gdpr/" }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the controller — not only the provider — controls the keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys reduce provider access to plaintext and strengthen the sovereignty posture.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 32", "title": "Security of processing", "url": "https://gdpr-info.eu/art-32-gdpr/" },
+        { "regulation": "BDSG", "article": "§ 64", "title": "Requirements for the security of data processing", "url": "https://www.gesetze-im-internet.de/bdsg_2018/__64.html" }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is a baseline technical measure under the security-of-processing obligation.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 32", "title": "Security of processing", "url": "https://gdpr-info.eu/art-32-gdpr/" },
+        { "regulation": "BDSG", "article": "§ 64", "title": "Requirements for the security of data processing", "url": "https://www.gesetze-im-internet.de/bdsg_2018/__64.html" }
+      ]
+    }
+  ]
+}

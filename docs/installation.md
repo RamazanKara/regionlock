@@ -1,0 +1,53 @@
+# Installation
+
+## CLI
+
+The `regionlock` CLI is a single static binary with no runtime dependencies.
+
+```bash
+# Go
+go install github.com/RamazanKara/regionlock/cmd/regionlock@latest
+
+# Homebrew
+brew install RamazanKara/tap/regionlock
+
+# Container
+docker run --rm -v "$PWD:/wd" -w /wd ghcr.io/ramazankara/regionlock \
+  lint --manifests ./k8s
+
+# Release binary (example: linux/amd64)
+curl -fsSL https://github.com/RamazanKara/regionlock/releases/latest/download/regionlock_linux_amd64.tar.gz \
+  | tar -xz regionlock && sudo mv regionlock /usr/local/bin/
+```
+
+Release archives ship with a cosign-signed `checksums.txt` — see
+[RELEASING.md](../RELEASING.md) for verification.
+
+## Policy pack (Helm chart)
+
+The chart requires a policy engine in the cluster — **Kyverno** (default) or
+**OPA/Gatekeeper**.
+
+```bash
+# Kyverno
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+
+# Regionlock (from the repo)
+helm install regionlock ./chart/regionlock -n regionlock --create-namespace
+
+# Regionlock (OCI, from a release)
+helm install regionlock oci://ghcr.io/ramazankara/charts/regionlock \
+  -n regionlock --create-namespace
+```
+
+Select the engine with `--set engine=kyverno|gatekeeper|both`. For Gatekeeper,
+install [Gatekeeper](https://open-policy-agent.github.io/gatekeeper/) first.
+
+## Quick verification
+
+```bash
+regionlock version
+regionlock policies                      # list controls + article mapping
+regionlock report --manifests ./k8s      # evidence report of your manifests
+```

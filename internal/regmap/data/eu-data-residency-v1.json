@@ -5,6 +5,16 @@
   "jurisdiction": "European Union",
   "updated": "2026-07-05",
   "notes": "Maps Regionlock enforcement checks to the specific legal provisions they provide evidence of controls for. This is evidence of technical/organizational controls (Art. 32) and placement enforcement — not a cryptographic proof that data never physically left the EU.",
+  "regions": [
+    "eu-central-1", "eu-central-2", "eu-west-1", "eu-west-2", "eu-west-3",
+    "eu-north-1", "eu-south-1", "eu-south-2",
+    "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+    "europe-west6", "europe-west8", "europe-west9", "europe-west10",
+    "europe-west12", "europe-north1", "europe-central2", "europe-southwest1",
+    "westeurope", "northeurope", "germanywestcentral", "germanynorth",
+    "francecentral", "francesouth", "swedencentral", "switzerlandnorth",
+    "norwayeast", "polandcentral", "italynorth", "spaincentral"
+  ],
   "rules": [
     {
       "rule_id": "eu-region-placement",

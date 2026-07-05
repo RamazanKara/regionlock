@@ -1,4 +1,4 @@
-{{- if .Values.policies.encryptionAtRest }}
+{{- if and (has .Values.engine (list "kyverno" "both")) .Values.policies.encryptionAtRest }}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:

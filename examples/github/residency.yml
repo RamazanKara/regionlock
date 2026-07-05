@@ -1,0 +1,28 @@
+# Drop this into .github/workflows/ to gate every PR on EU data-residency and
+# surface violations in the GitHub Security tab.
+name: residency
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write   # to upload SARIF
+
+jobs:
+  regionlock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: regionlock
+        uses: RamazanKara/regionlock@v0.2.0
+        with:
+          manifests: ./k8s
+          regulation: eu-data-residency-v1
+          fail-on: high
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.regionlock.outputs.sarif }}

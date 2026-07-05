@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **OPA/Gatekeeper engine** (`--set engine=kyverno|gatekeeper|both`): ConstraintTemplates +
+  Constraints mirroring the Kyverno policies, CI-verified with `gator` to produce identical
+  violations.
+- **Multi-jurisdiction** rulesets: `de-data-residency-v1` (Germany, GDPR+BDSG) and
+  `ch-fadp-v1` (Switzerland, revFADP). Each ruleset carries its own in-territory region
+  allow-list, used automatically by `--regulation`.
+- **PDF** and **SARIF** evidence output (`--format pdf,sarif`). SARIF surfaces violations in
+  the GitHub Security tab.
+- **`regionlock diff`**: compare two evidence reports and render the residency delta
+  (new/resolved violations) as console or PR-comment Markdown.
+- **GitHub Action** (`action.yml`) + example workflows for lint-gate + SARIF upload and
+  PR-comment diff.
+- **Release engineering**: GoReleaser (signed cross-platform binaries, SBOM, Homebrew),
+  multi-arch container image (`ghcr.io/ramazankara/regionlock`), OCI Helm chart publishing,
+  keyless cosign signing.
+- Docs set (`docs/`), SECURITY, CODE_OF_CONDUCT, issue/PR templates, dependabot,
+  golangci-lint config.
+
+### Changed
+- Rulesets now include a `regions` allow-list; the CLI uses the selected jurisdiction's
+  regions as the baseline (config/flags still override).
+
 ## [0.1.0] — 2026-07-05
 
 Initial MVP.

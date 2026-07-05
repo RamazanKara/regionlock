@@ -1,0 +1,57 @@
+{
+  "id": "ch-fadp-v1",
+  "version": "1.0.0",
+  "title": "Switzerland Data Residency Baseline (revFADP/nDSG)",
+  "jurisdiction": "Switzerland",
+  "updated": "2026-07-05",
+  "notes": "Constrains placement to Swiss cloud regions and evidences the revised Swiss Federal Act on Data Protection (revFADP / nDSG, in force 1 Sept 2023). Evidence of technical/organizational controls, not a cryptographic data-path proof.",
+  "regions": [
+    "eu-central-2",
+    "europe-west6",
+    "switzerlandnorth",
+    "switzerlandwest"
+  ],
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to a Swiss region",
+      "description": "Every workload declares node placement constrained to an allow-listed Swiss cloud region (Zurich/Geneva) via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "Cross-border disclosure of personal data is only permitted to states with adequate protection or under specific safeguards; keeping workloads in Switzerland avoids the transfer question.",
+      "articles": [
+        { "regulation": "revFADP", "article": "Art. 16", "title": "Cross-border disclosure of personal data — principles", "url": "https://www.fedlex.admin.ch/eli/cc/2022/491/en#art_16" },
+        { "regulation": "revFADP", "article": "Art. 17", "title": "Exceptions for cross-border disclosure", "url": "https://www.fedlex.admin.ch/eli/cc/2022/491/en#art_17" }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or cross-border egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress.",
+      "severity": "high",
+      "rationale": "Open egress can disclose personal data across the border without meeting the FADP conditions.",
+      "articles": [
+        { "regulation": "revFADP", "article": "Art. 16", "title": "Cross-border disclosure of personal data — principles", "url": "https://www.fedlex.admin.ch/eli/cc/2022/491/en#art_16" }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the controller controls the keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys are an appropriate technical measure to ensure data security.",
+      "articles": [
+        { "regulation": "revFADP", "article": "Art. 8", "title": "Data security", "url": "https://www.fedlex.admin.ch/eli/cc/2022/491/en#art_8" }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is an appropriate technical measure to ensure data security.",
+      "articles": [
+        { "regulation": "revFADP", "article": "Art. 8", "title": "Data security", "url": "https://www.fedlex.admin.ch/eli/cc/2022/491/en#art_8" }
+      ]
+    }
+  ]
+}

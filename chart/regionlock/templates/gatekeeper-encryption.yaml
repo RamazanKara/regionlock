@@ -1,0 +1,49 @@
+{{- if and (has .Values.engine (list "gatekeeper" "both")) .Values.policies.encryptionAtRest }}
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlockencryption
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: encryption-at-rest
+    regionlock.io/articles: "GDPR Art. 32"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockEncryption
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            encryptionLabel:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlockencryption
+
+        violation[{"msg": msg}] {
+          labels := object.get(input.review.object.metadata, "labels", {})
+          object.get(labels, input.parameters.encryptionLabel, "") != "true"
+          msg := sprintf("BLOCKED: PersistentVolumeClaim must declare encryption at rest (%v=true) [GDPR Art. 32]", [input.parameters.encryptionLabel])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockEncryption
+metadata:
+  name: regionlock-encryption-at-rest
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+spec:
+  enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["PersistentVolumeClaim"]
+    {{- with .Values.excludeNamespaces }}
+    excludedNamespaces:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  parameters:
+    encryptionLabel: {{ .Values.encryptionLabel | quote }}
+{{- end }}

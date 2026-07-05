@@ -29,8 +29,8 @@ import (
 	"crypto/rand"
 )
 
-// Version is overridable at build time: -ldflags "-X main.Version=v0.1.0".
-var Version = "0.0.1-dev"
+// Version is overridable at build time: -ldflags "-X main.Version=v0.2.0".
+var Version = "0.2.0-dev"
 
 const toolName = "regionlock"
 
@@ -45,6 +45,8 @@ func main() {
 		err = runReport(os.Args[2:])
 	case "lint":
 		err = runLint(os.Args[2:])
+	case "diff":
+		err = runDiff(os.Args[2:])
 	case "policies":
 		err = runPolicies(os.Args[2:])
 	case "keygen":
@@ -70,9 +72,13 @@ func usage() {
 Usage:
   regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--sign-key FILE]
   regionlock lint     --manifests DIR [--fail-on any|high]
-  regionlock policies [--json]
+  regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
+  regionlock policies [--regulation ID] [--json]
   regionlock keygen   [--out FILE]
   regionlock version
+
+Regulation rulesets: use --regulation to select a jurisdiction.
+Run "regionlock policies" to list a ruleset's controls.
 
 Run "regionlock <command> -h" for command flags.
 `, Version)
@@ -87,8 +93,13 @@ type fileConfig struct {
 	EncryptionLabel   string   `yaml:"encryptionLabel"`
 }
 
-func buildConfig(path string, requireRegion, allowExternalName bool, reqSet, allowSet bool) (rules.Config, error) {
+func buildConfig(path string, rulesetRegions []string, requireRegion, allowExternalName bool, reqSet, allowSet bool) (rules.Config, error) {
 	cfg := rules.DefaultConfig()
+	// A jurisdiction ruleset's own region allow-list is the baseline (below the
+	// config file and explicit flags).
+	if len(rulesetRegions) > 0 {
+		cfg.EURegions = rulesetRegions
+	}
 	if path != "" {
 		b, err := os.ReadFile(path)
 		if err != nil {
@@ -151,8 +162,8 @@ func runReport(args []string) error {
 	manifests := fs.String("manifests", "", "directory of Kubernetes manifests to scan (default: live cluster via kubectl)")
 	kubeconfig := fs.String("kubeconfig", "", "path to kubeconfig for live scan")
 	kctx := fs.String("context", "", "kubeconfig context for live scan")
-	format := fs.String("format", "console", "comma list: console,json,md,html")
-	out := fs.String("out", "", "directory to write json/md/html files (default: stdout)")
+	format := fs.String("format", "console", "comma list: console,json,md,html,pdf,sarif")
+	out := fs.String("out", "", "directory to write file outputs (default: stdout; required for pdf/sarif)")
 	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
 	configPath := fs.String("config", "", "path to a regionlock.yaml config")
 	signKey := fs.String("sign-key", "", "path to an ed25519 seed (hex) to sign the report")
@@ -160,11 +171,11 @@ func runReport(args []string) error {
 	allowExternalName := fs.Bool("allow-external-name", false, "permit Service type=ExternalName")
 	fs.Parse(args)
 
-	cfg, err := buildConfig(*configPath, *requireRegion, *allowExternalName, flagSet(fs, "require-region"), flagSet(fs, "allow-external-name"))
+	rs, err := regmap.Load(*regulation)
 	if err != nil {
 		return err
 	}
-	rs, err := regmap.Load(*regulation)
+	cfg, err := buildConfig(*configPath, rs.Regions, *requireRegion, *allowExternalName, flagSet(fs, "require-region"), flagSet(fs, "allow-external-name"))
 	if err != nil {
 		return err
 	}
@@ -218,6 +229,25 @@ func emit(rep report.Report, format, out string) error {
 			if err := writeOrPrint(out, "regionlock-evidence.html", []byte(h)); err != nil {
 				return err
 			}
+		case "pdf":
+			b, err := rep.PDF()
+			if err != nil {
+				return err
+			}
+			if out == "" {
+				return fmt.Errorf("pdf format requires --out DIR (it is binary)")
+			}
+			if err := writeOrPrint(out, "regionlock-evidence.pdf", b); err != nil {
+				return err
+			}
+		case "sarif":
+			b, err := rep.SARIF()
+			if err != nil {
+				return err
+			}
+			if err := writeOrPrint(out, "regionlock-evidence.sarif", b); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unknown format %q", f)
 		}
@@ -254,11 +284,11 @@ func runLint(args []string) error {
 	if *failOn != "any" && *failOn != "high" {
 		return fmt.Errorf("--fail-on must be any|high, got %q", *failOn)
 	}
-	cfg, err := buildConfig(*configPath, *requireRegion, *allowExternalName, flagSet(fs, "require-region"), flagSet(fs, "allow-external-name"))
+	rs, err := regmap.Load(*regulation)
 	if err != nil {
 		return err
 	}
-	rs, err := regmap.Load(*regulation)
+	cfg, err := buildConfig(*configPath, rs.Regions, *requireRegion, *allowExternalName, flagSet(fs, "require-region"), flagSet(fs, "allow-external-name"))
 	if err != nil {
 		return err
 	}
@@ -299,6 +329,59 @@ func runLint(args []string) error {
 	return nil
 }
 
+func runDiff(args []string) error {
+	fs := flag.NewFlagSet("diff", flag.ExitOnError)
+	baseline := fs.String("baseline", "", "path to the baseline report JSON (required)")
+	current := fs.String("current", "", "path to the current report JSON (required)")
+	format := fs.String("format", "console", "console|md")
+	out := fs.String("out", "", "write the diff to this file instead of stdout")
+	failOnRegression := fs.Bool("fail-on-regression", false, "exit non-zero if new violations were introduced")
+	fs.Parse(args)
+
+	if *baseline == "" || *current == "" {
+		return errors.New("diff requires --baseline OLD.json and --current NEW.json")
+	}
+	base, err := loadReport(*baseline)
+	if err != nil {
+		return err
+	}
+	cur, err := loadReport(*current)
+	if err != nil {
+		return err
+	}
+	d := report.Compare(base, cur)
+
+	var rendered string
+	switch *format {
+	case "md", "markdown":
+		rendered = d.Markdown()
+	case "console", "":
+		rendered = d.Console()
+	default:
+		return fmt.Errorf("unknown diff format %q (use console|md)", *format)
+	}
+	if *out != "" {
+		if err := os.WriteFile(*out, []byte(rendered), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s\n", *out)
+	} else {
+		fmt.Println(rendered)
+	}
+	if *failOnRegression && d.Regressed {
+		os.Exit(1)
+	}
+	return nil
+}
+
+func loadReport(path string) (report.Report, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return report.Report{}, fmt.Errorf("reading %s: %w", path, err)
+	}
+	return report.ParseJSON(b)
+}
+
 func runPolicies(args []string) error {
 	fs := flag.NewFlagSet("policies", flag.ExitOnError)
 	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
@@ -317,7 +400,11 @@ func runPolicies(args []string) error {
 		fmt.Print(string(b))
 		return nil
 	}
-	fmt.Printf("%s@%s — %s (%s)\n\n", rs.ID, rs.Version, rs.Title, rs.Jurisdiction)
+	fmt.Printf("%s@%s — %s (%s)\n", rs.ID, rs.Version, rs.Title, rs.Jurisdiction)
+	if len(rs.Regions) > 0 {
+		fmt.Printf("in-territory regions: %s\n", strings.Join(rs.Regions, ", "))
+	}
+	fmt.Println()
 	for _, r := range rs.Rules {
 		arts := make([]string, 0, len(r.Articles))
 		for _, a := range r.Articles {
@@ -326,6 +413,7 @@ func runPolicies(args []string) error {
 		fmt.Printf("• %-24s [%s]\n  %s\n  evidences: %s\n\n",
 			r.RuleID, r.Severity, r.Description, strings.Join(arts, ", "))
 	}
+	fmt.Printf("available rulesets: %s\n", strings.Join(regmap.Available(), ", "))
 	return nil
 }
 

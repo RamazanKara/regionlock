@@ -13,7 +13,7 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go vet ./...
-      - run: go test ./... -race
+      - run: go test ./... -race -coverprofile=cover.out
       - run: go build ./...
       - name: lint gate must FAIL on violating fixtures
         run: |
@@ -24,22 +24,60 @@ jobs:
           fi
       - name: lint gate must PASS on compliant fixtures
         run: go run ./cmd/regionlock lint --manifests testdata/compliant
+      - name: multi-jurisdiction rulesets load
+        run: |
+          for r in eu-data-residency-v1 de-data-residency-v1 ch-fadp-v1; do
+            go run ./cmd/regionlock policies --regulation "$r" >/dev/null || { echo "ruleset $r failed"; exit 1; }
+          done
+
+  golangci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
 
   chart:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
+      - run: python3 -m pip install --quiet pyyaml
       - name: helm lint
         run: helm lint chart/regionlock
-      - name: render chart
-        run: helm template regionlock chart/regionlock > /tmp/rendered.yaml
-      - name: rendered output is valid YAML
-        run: python3 -c "import yaml; list(yaml.safe_load_all(open('/tmp/rendered.yaml')))"
-      - name: Kyverno region expression is emitted verbatim (brace-escaping intact)
-        run: grep -q 'request.object.spec.nodeSelector."topology.kubernetes.io/region"' /tmp/rendered.yaml
-      - name: all four ClusterPolicies are present
+      - name: render + validate each engine
+        run: |
+          set -e
+          for engine in kyverno gatekeeper both; do
+            helm template rl chart/regionlock --set engine=$engine > /tmp/$engine.yaml
+            python3 -c "import yaml; list(yaml.safe_load_all(open('/tmp/$engine.yaml')))"
+            echo "engine=$engine renders to valid YAML"
+          done
+      - name: Kyverno brace-escaping intact
+        run: grep -q 'request.object.spec.nodeSelector."topology.kubernetes.io/region"' /tmp/kyverno.yaml
+      - name: all four Kyverno policies present
         run: |
           for p in eu-region-placement no-non-eu-egress customer-managed-key encryption-at-rest; do
-            grep -q "regionlock-$p" /tmp/rendered.yaml || { echo "missing policy $p"; exit 1; }
+            grep -q "regionlock-$p" /tmp/kyverno.yaml || { echo "missing policy $p"; exit 1; }
           done
+
+  gatekeeper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: azure/setup-helm@v4
+      - name: install gator
+        run: go install github.com/open-policy-agent/gatekeeper/v3/cmd/gator@v3.18.0
+      - name: render Gatekeeper policies and test the Rego
+        run: |
+          helm template rl chart/regionlock --set engine=gatekeeper > /tmp/gk.yaml
+          n=$(gator test -f /tmp/gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
+          echo "gator reported $n violations"
+          test "$n" -eq 6 || { echo "expected 6 violations, got $n"; exit 1; }

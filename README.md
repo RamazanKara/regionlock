@@ -2,12 +2,19 @@
 
 **Prove your Kubernetes workloads stay in the EU — in one `helm install`.**
 
-Regionlock enforces EU data-residency on any Kubernetes cluster (pin workloads to EU
-regions, require customer-managed keys, block non-EU egress) **and** emits a signed,
-GDPR/EU-Data-Act–article-mapped **evidence report** a DPO or auditor can actually use.
+[![ci](https://github.com/RamazanKara/regionlock/actions/workflows/ci.yml/badge.svg)](https://github.com/RamazanKara/regionlock/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/RamazanKara/regionlock)](https://goreportcard.com/report/github.com/RamazanKara/regionlock)
+[![Go Reference](https://pkg.go.dev/badge/github.com/RamazanKara/regionlock.svg)](https://pkg.go.dev/github.com/RamazanKara/regionlock)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+Regionlock enforces EU (or Germany-, or Switzerland-) data-residency on any Kubernetes
+cluster (pin workloads to in-territory regions, require customer-managed keys, block
+unrestricted egress) **and** emits a signed, article-mapped **evidence report** — HTML,
+PDF, JSON, or SARIF — a DPO or auditor can actually use.
 
 It treats the regulation as *versioned policy code you subscribe to* — not a static
-checklist that rots.
+checklist that rots. Enforcement runs on **Kyverno or OPA/Gatekeeper**, whichever your
+cluster already has.
 
 ```console
 $ kubectl apply -f pod-pinned-to-us-east-1.yaml
@@ -48,9 +55,9 @@ Apache-2.0, Kyverno/OPA-based, with the evidence report as a first-class output.
 
 | | |
 |---|---|
-| **Enforce** | A Helm chart of tested Kyverno `ClusterPolicy` objects that block, at admission, workloads not pinned to an EU region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName` services, and NetworkPolicies with unrestricted egress. |
-| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report — console, Markdown, **HTML**, JSON — mapping every check to the specific GDPR / EU Data Act article it evidences, stamped with a SHA-256 digest and optional ed25519 signature. |
-| **Gate** | `regionlock lint` runs in CI and fails the build on a residency violation — so drift is caught in the PR, not the audit. |
+| **Enforce** | A Helm chart of tested **Kyverno** *or* **OPA/Gatekeeper** policies that block, at admission, workloads not pinned to an in-territory region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName` services, and NetworkPolicies with unrestricted egress. Both engines are CI-verified to produce identical violations. |
+| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report — console, Markdown, **HTML**, **PDF**, JSON, **SARIF** — mapping every check to the specific article it evidences, stamped with a SHA-256 digest and optional ed25519 signature. |
+| **Gate** | `regionlock lint` fails a CI build on a residency violation, `regionlock diff` comments the residency delta on a PR, and the [GitHub Action](#github-action) uploads SARIF to the Security tab — so drift is caught in the PR, not the audit. |
 
 ## Install
 
@@ -115,9 +122,44 @@ Run `regionlock policies` to print the live mapping. The versioned ruleset
 | `customer-managed-key` | medium | GDPR Art. 32 |
 | `encryption-at-rest` | medium | GDPR Art. 32 |
 
-The mapping is **versioned** (`regulations/eu-data-residency-v1.json`): pin a ruleset
-version, and updates arrive as a reviewable, changelogged bump — the tool doesn't silently
-rot when guidance shifts.
+The mapping is **versioned** (`internal/regmap/data/eu-data-residency-v1.json`): pin a
+ruleset version, and updates arrive as a reviewable, changelogged bump — the tool doesn't
+silently rot when guidance shifts.
+
+### Jurisdictions
+
+Select one with `--regulation <id>` (CLI) or the matching region allow-list (chart):
+
+| Ruleset | Jurisdiction | Regulations |
+|---|---|---|
+| `eu-data-residency-v1` (default) | European Union | GDPR, EU Data Act |
+| `de-data-residency-v1` | Germany | GDPR + BDSG |
+| `ch-fadp-v1` | Switzerland | revFADP / nDSG |
+
+Each ships its own in-territory region list. Adding another jurisdiction is one JSON file —
+see [docs/regulations.md](docs/regulations.md).
+
+## GitHub Action
+
+Gate every PR and surface violations in the Security tab:
+
+```yaml
+- uses: actions/checkout@v4
+- id: regionlock
+  uses: RamazanKara/regionlock@v0.2.0
+  with:
+    manifests: ./k8s
+    regulation: eu-data-residency-v1
+    fail-on: high
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: ${{ steps.regionlock.outputs.sarif }}
+```
+
+Or comment the residency **delta** of a PR (what it newly violates/resolves) with
+`regionlock diff` — see [examples/github](examples/github) and
+[docs/ci-integration.md](docs/ci-integration.md).
 
 ## How it compares
 
@@ -131,9 +173,10 @@ rot when guidance shifts.
 ## Configuration
 
 Everything is a Helm value (`chart/regionlock/values.yaml`) or a `regionlock.yaml` for the
-CLI (`--config`). Key knobs: `enforcementAction` (Enforce/Audit), `euRegions` (the allow-list),
-`requireRegion`, `allowExternalName`, `cmkAnnotation`, `encryptionLabel`, `excludeNamespaces`.
-See [`regionlock.example.yaml`](regionlock.example.yaml).
+CLI (`--config`). Key knobs: `engine` (kyverno/gatekeeper/both), `enforcementAction`
+(Enforce/Audit), `euRegions` (the allow-list), `requireRegion`, `allowExternalName`,
+`cmkAnnotation`, `encryptionLabel`, `excludeNamespaces`. See
+[`regionlock.example.yaml`](regionlock.example.yaml) and [docs/configuration.md](docs/configuration.md).
 
 ## Scope & honesty
 
@@ -143,12 +186,22 @@ cluster — region pinning, egress restriction, customer-managed keys, encryptio
 confidential computing / TEE attestation). The evidence report says exactly this, so you can
 hand it to a DPO without over-claiming.
 
+## Documentation
+
+- [Installation](docs/installation.md) · [Configuration](docs/configuration.md) ·
+  [Regulations](docs/regulations.md) · [CI integration](docs/ci-integration.md) ·
+  [Architecture](docs/architecture.md) · [Releasing](RELEASING.md)
+
 ## Roadmap
 
-- OPA/Gatekeeper policy set behind a flag (double the addressable base)
-- Additional jurisdictions as community PRs (`us-hipaa`, `uk-data-protection`, `ch-fadp`)
-- PDF evidence export; cosign-signed releases
-- CI PR-comment with the evidence delta
+Shipped in 0.2: ✅ OPA/Gatekeeper engine · ✅ PDF + SARIF export · ✅ evidence diff +
+PR-comment Action · ✅ multi-jurisdiction (EU/DE/CH) · ✅ signed releases (cosign + SBOM).
+
+Next:
+
+- More jurisdictions as community PRs (`uk-data-protection`, `us-hipaa`, `fr`, `eu-health-data-space`)
+- Live-cluster continuous evidence (scheduled report → object storage)
+- CNCF Sandbox submission
 
 ## Contributing
 

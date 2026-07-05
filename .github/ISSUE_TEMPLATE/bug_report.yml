@@ -1,0 +1,37 @@
+name: Bug report
+description: Something in Regionlock behaves incorrectly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the command you ran and what you expected vs. got.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - CLI / rule engine (false pass or false fail)
+        - Evidence report (report/pdf/sarif/diff)
+        - Helm chart / Kyverno policy
+        - Helm chart / Gatekeeper policy
+        - GitHub Action / CI
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `regionlock version`
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal manifest to reproduce
+      description: A small YAML that triggers the wrong result (redact anything sensitive).
+      render: yaml

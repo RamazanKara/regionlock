@@ -1,8 +1,10 @@
 # Example Regionlock CLI config. Pass with:  regionlock report --config regionlock.yaml
 #
-# Every field is optional; unset fields fall back to the built-in defaults.
+# Every field is optional; unset fields fall back to the selected ruleset's
+# defaults (see: regionlock policies --regulation <id>).
 
-# Cloud region identifiers considered inside the EEA (replace the built-in list).
+# Cloud region identifiers considered in-territory (replace the ruleset's list).
+# Omit this to inherit the region allow-list of the --regulation you pick.
 euRegions:
   - eu-central-1
   - eu-west-1

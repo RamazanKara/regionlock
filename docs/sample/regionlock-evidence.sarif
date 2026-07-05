@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "regionlock",
+          "informationUri": "https://github.com/RamazanKara/regionlock",
+          "version": "v0.2.0",
+          "rules": [
+            {
+              "id": "customer-managed-key",
+              "name": "Storage uses customer-managed keys",
+              "shortDescription": {
+                "text": "Storage uses customer-managed keys"
+              },
+              "helpUri": "https://github.com/RamazanKara/regionlock#what-each-control-evidences",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "regionlock",
+                  "data-residency",
+                  "compliance"
+                ]
+              }
+            },
+            {
+              "id": "encryption-at-rest",
+              "name": "Encryption at rest declared",
+              "shortDescription": {
+                "text": "Encryption at rest declared"
+              },
+              "helpUri": "https://github.com/RamazanKara/regionlock#what-each-control-evidences",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "regionlock",
+                  "data-residency",
+                  "compliance"
+                ]
+              }
+            },
+            {
+              "id": "eu-region-placement",
+              "name": "Workloads pinned to an EU region",
+              "shortDescription": {
+                "text": "Workloads pinned to an EU region"
+              },
+              "helpUri": "https://github.com/RamazanKara/regionlock#what-each-control-evidences",
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "regionlock",
+                  "data-residency",
+                  "compliance"
+                ]
+              }
+            },
+            {
+              "id": "no-non-eu-egress",
+              "name": "No unrestricted or extra-EU egress",
+              "shortDescription": {
+                "text": "No unrestricted or extra-EU egress"
+              },
+              "helpUri": "https://github.com/RamazanKara/regionlock#what-each-control-evidences",
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "regionlock",
+                  "data-residency",
+                  "compliance"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "customer-managed-key",
+          "level": "warning",
+          "message": {
+            "text": "no customer-managed key annotation (regionlock.io/cmk-key-id) [GDPR Art. 32]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "encryption-at-rest",
+          "level": "warning",
+          "message": {
+            "text": "encryption at rest not declared (label/annotation regionlock.io/encrypted=true) [GDPR Art. 32]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "eu-region-placement",
+          "level": "error",
+          "message": {
+            "text": "pinned to non-EU region(s): us-east-1 [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "eu-region-placement",
+          "level": "error",
+          "message": {
+            "text": "no EU region constraint declared (set topology.kubernetes.io/region via nodeSelector or nodeAffinity) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "no-non-eu-egress",
+          "level": "error",
+          "message": {
+            "text": "permits unrestricted egress 0.0.0.0/0 (can reach non-EU destinations) [GDPR Art. 44, GDPR Art. 46]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "no-non-eu-egress",
+          "level": "error",
+          "message": {
+            "text": "Service proxies to external endpoint \"metrics.us-analytics.example.com\" (potential extra-EU transfer) [GDPR Art. 44, GDPR Art. 46]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

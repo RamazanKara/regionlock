@@ -31,6 +31,13 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{- end -}}
 
 {{/*
+Gatekeeper enforcementAction derived from the shared Enforce/Audit value.
+*/}}
+{{- define "regionlock.gatekeeperAction" -}}
+{{- if eq .Values.enforcementAction "Audit" -}}dryrun{{- else -}}deny{{- end -}}
+{{- end -}}
+
+{{/*
 Reusable exclude block (namespaces exempt from a policy). Include with the
 excludeNamespaces list as the context: {{ include "regionlock.exclude" .Values.excludeNamespaces }}
 */}}

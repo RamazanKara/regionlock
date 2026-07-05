@@ -1,0 +1,65 @@
+{{- if and (has .Values.engine (list "gatekeeper" "both")) .Values.policies.euRegionPlacement }}
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlockeuregion
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: eu-region-placement
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 45; EU Data Act Art. 32"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockEuRegion
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            requireRegion:
+              type: boolean
+            allowedRegions:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlockeuregion
+
+        violation[{"msg": msg}] {
+          region := input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
+          not region_allowed(region)
+          msg := sprintf("BLOCKED: non-EU region \"%v\" violates EU data-residency policy [GDPR Art. 44]", [region])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.requireRegion
+          not input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
+          msg := "BLOCKED: no EU region declared via topology.kubernetes.io/region [GDPR Art. 44]"
+        }
+
+        region_allowed(region) {
+          input.parameters.allowedRegions[_] == region
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockEuRegion
+metadata:
+  name: regionlock-eu-region-placement
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+spec:
+  enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    {{- with .Values.excludeNamespaces }}
+    excludedNamespaces:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  parameters:
+    requireRegion: {{ .Values.requireRegion }}
+    allowedRegions:
+    {{- toYaml .Values.euRegions | nindent 6 }}
+{{- end }}

@@ -1,0 +1,62 @@
+{{- if and (has .Values.engine (list "gatekeeper" "both")) .Values.policies.noNonEuEgress }}
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlocknoegress
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+  annotations:
+    regionlock.io/rule-id: no-non-eu-egress
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 46"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockNoEgress
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            allowExternalName:
+              type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlocknoegress
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          input.review.object.spec.type == "ExternalName"
+          not input.parameters.allowExternalName
+          msg := sprintf("BLOCKED: Service type=ExternalName proxies to external endpoint %v (potential extra-EU transfer) [GDPR Art. 44]", [input.review.object.spec.externalName])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "NetworkPolicy"
+          cidr := input.review.object.spec.egress[_].to[_].ipBlock.cidr
+          unrestricted(cidr)
+          msg := sprintf("BLOCKED: NetworkPolicy permits unrestricted egress %v (can reach non-EU destinations) [GDPR Art. 46]", [cidr])
+        }
+
+        unrestricted(cidr) { cidr == "0.0.0.0/0" }
+        unrestricted(cidr) { cidr == "::/0" }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockNoEgress
+metadata:
+  name: regionlock-no-non-eu-egress
+  labels: {{- include "regionlock.labels" . | nindent 4 }}
+spec:
+  enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+      - apiGroups: ["networking.k8s.io"]
+        kinds: ["NetworkPolicy"]
+    {{- with .Values.excludeNamespaces }}
+    excludedNamespaces:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  parameters:
+    allowExternalName: {{ .Values.allowExternalName }}
+{{- end }}

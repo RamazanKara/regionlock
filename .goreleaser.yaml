@@ -1,0 +1,100 @@
+version: 2
+project_name: regionlock
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: regionlock
+    main: ./cmd/regionlock
+    binary: regionlock
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.Version={{ .Version }}
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - regionlock.example.yaml
+
+checksum:
+  name_template: "checksums.txt"
+
+sboms:
+  - artifacts: archive
+
+# Keyless (Sigstore) signing of the checksums file. Requires the release
+# workflow to grant id-token: write.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--yes"
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
+
+brews:
+  - name: regionlock
+    repository:
+      owner: RamazanKara
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/RamazanKara/regionlock"
+    description: "Enforce & evidence EU data-residency on Kubernetes"
+    license: "Apache-2.0"
+    # Skip the tap push when the token isn't configured (e.g. fork releases).
+    skip_upload: "{{ envOrDefault \"HOMEBREW_SKIP\" \"false\" }}"
+    test: |
+      system "#{bin}/regionlock", "version"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: RamazanKara
+    name: regionlock
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Install
+
+    ```bash
+    go install github.com/RamazanKara/regionlock/cmd/regionlock@{{ .Tag }}
+    # or: brew install RamazanKara/tap/regionlock
+    # or: docker pull ghcr.io/ramazankara/regionlock:{{ .Tag }}
+    ```
+
+    Verify the checksums signature (keyless / Sigstore):
+    ```bash
+    cosign verify-blob --certificate checksums.txt.pem --signature checksums.txt.sig \
+      --certificate-identity-regexp 'https://github.com/RamazanKara/regionlock' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt
+    ```
