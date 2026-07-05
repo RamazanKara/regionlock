@@ -41,8 +41,23 @@ jobs:
 
       - name: install Regionlock (Enforce)
         run: |
-          helm install regionlock ./chart/regionlock -n regionlock --create-namespace \
-            --set engine=${{ matrix.engine }} --set enforcementAction=Enforce --wait --timeout 3m
+          set -e
+          if [ "${{ matrix.engine }}" = "kyverno" ]; then
+            helm install regionlock ./chart/regionlock -n regionlock --create-namespace \
+              --set engine=kyverno --set enforcementAction=Enforce --wait --timeout 3m
+          else
+            # Gatekeeper reconciles a ConstraintTemplate into its CRD asynchronously,
+            # so apply the rendered chart, wait for the generated CRDs to be
+            # Established, then apply again so the Constraints land (see docs).
+            kubectl create namespace regionlock
+            helm template regionlock ./chart/regionlock -n regionlock \
+              --set engine=gatekeeper --set enforcementAction=Enforce > /tmp/gk.yaml
+            kubectl apply -f /tmp/gk.yaml || true
+            for crd in regionlockeuregion regionlocknoegress regionlockcmk regionlockencryption; do
+              kubectl wait --for=condition=established "crd/$crd.constraints.gatekeeper.sh" --timeout=120s
+            done
+            kubectl apply -f /tmp/gk.yaml
+          fi
           kubectl create namespace shop
 
       - name: wait for the admission webhook / constraints to be active

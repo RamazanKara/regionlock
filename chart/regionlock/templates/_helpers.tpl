@@ -79,17 +79,16 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{- end -}}
 
 {{/*
-Constraint hook annotations. Gatekeeper reconciles a ConstraintTemplate into its
-backing CRD asynchronously, so a Constraint CR applied in the same pass fails with
-"no matches for kind". Applying Constraints as post-install/post-upgrade hooks
-lets the ConstraintTemplate CRDs become Established first. On uninstall, deleting
-the ConstraintTemplate (a normal release resource) cascade-removes the Constraint.
+NOTE ON GATEKEEPER INSTALL ORDERING: Gatekeeper reconciles each ConstraintTemplate
+into its backing CRD asynchronously, so on a COLD install the Constraint CR can be
+applied before its CRD is Established ("no matches for kind"). We deliberately keep
+both the ConstraintTemplate and the Constraint as NORMAL release resources (no Helm
+hooks) so that `helm upgrade` patches them in place — a hook with a delete policy
+would tear the enforcing Constraint down and recreate it, opening a fail-open window
+on every upgrade. For a cold install, apply the chart, wait for the CRDs to be
+Established, then apply once more (see docs/installation.md); the e2e workflow does
+exactly this.
 */}}
-{{- define "regionlock.constraintHookAnnotations" -}}
-helm.sh/hook: post-install,post-upgrade
-helm.sh/hook-weight: "5"
-helm.sh/hook-delete-policy: before-hook-creation
-{{- end -}}
 
 {{/*
 Gatekeeper enforcementAction derived from the shared Enforce/Audit value.

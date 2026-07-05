@@ -45,7 +45,6 @@ kind: RegionlockCmk
 metadata:
   name: regionlock-customer-managed-key
   labels: {{- include "regionlock.labels" . | nindent 4 }}
-  annotations: {{- include "regionlock.constraintHookAnnotations" . | nindent 4 }}
 spec:
   enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
   match:

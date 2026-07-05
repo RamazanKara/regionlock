@@ -44,6 +44,27 @@ helm install regionlock oci://ghcr.io/ramazankara/charts/regionlock \
 Select the engine with `--set engine=kyverno|gatekeeper|both`. For Gatekeeper,
 install [Gatekeeper](https://open-policy-agent.github.io/gatekeeper/) first.
 
+### Gatekeeper install ordering
+
+Gatekeeper turns each ConstraintTemplate into a CRD **asynchronously**, so on a
+cold install the Constraint can be applied before its CRD exists (`no matches for
+kind`). The chart keeps Constraints as normal resources (so `helm upgrade` never
+tears down enforcement), which means a first-time Gatekeeper install should apply,
+wait for the CRDs, then apply again:
+
+```bash
+helm template regionlock ./chart/regionlock --set engine=gatekeeper -n regionlock > gk.yaml
+kubectl create namespace regionlock
+kubectl apply -f gk.yaml || true          # Constraints may not land on the first pass
+for c in regionlockeuregion regionlocknoegress regionlockcmk regionlockencryption; do
+  kubectl wait --for=condition=established "crd/$c.constraints.gatekeeper.sh" --timeout=120s
+done
+kubectl apply -f gk.yaml                   # Constraints land now
+```
+
+Kyverno needs no such dance (`helm install --set engine=kyverno` just works).
+Subsequent `helm upgrade`s are safe for both engines.
+
 ## Quick verification
 
 ```bash

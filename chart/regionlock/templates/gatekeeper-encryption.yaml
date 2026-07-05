@@ -45,7 +45,6 @@ kind: RegionlockEncryption
 metadata:
   name: regionlock-encryption-at-rest
   labels: {{- include "regionlock.labels" . | nindent 4 }}
-  annotations: {{- include "regionlock.constraintHookAnnotations" . | nindent 4 }}
 spec:
   enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
   match:

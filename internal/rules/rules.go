@@ -168,14 +168,19 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 		return nil
 	}
 	pt := r.PodTemplate
+	// A declared cluster region outside the allow-list fails EVERY workload —
+	// including an EU-pinned one — because the operator has asserted the whole
+	// cluster physically runs outside the territory, so an in-EU node label is at
+	// best mislabeled or unschedulable.
+	if cfg.ClusterRegion != "" && !cfg.isEU(cfg.ClusterRegion) {
+		return []Finding{newFinding(r, RuleEURegion, Fail,
+			fmt.Sprintf("cluster region %q is not in-territory (declared via clusterRegion)", cfg.ClusterRegion))}
+	}
 	// A workload is "pinned" only if it declares a positive, concrete region via
 	// nodeSelector or an In-nodeAffinity term. Exists/DoesNotExist/NotIn produce
 	// no concrete values, so they do not count as an EU pin.
 	if !pt.HasRegionConstraint {
 		switch {
-		case cfg.ClusterRegion != "" && !cfg.isEU(cfg.ClusterRegion):
-			return []Finding{newFinding(r, RuleEURegion, Fail,
-				fmt.Sprintf("cluster region %q is not in-territory (declared via clusterRegion)", cfg.ClusterRegion))}
 		case cfg.ClusterRegion != "":
 			return []Finding{newFinding(r, RuleEURegion, Pass,
 				fmt.Sprintf("no workload pin; cluster region %q is in-territory", cfg.ClusterRegion))}

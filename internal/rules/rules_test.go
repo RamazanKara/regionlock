@@ -124,10 +124,15 @@ func TestClusterRegionMode(t *testing.T) {
 		t.Fatalf("explicit non-EU pin should still fail even with an EU cluster region, got %s", f.Status)
 	}
 
-	// Cluster out of territory: everything fails.
+	// Cluster out of territory: EVERYTHING fails — including an EU-pinned workload
+	// (the operator declared the cluster physically runs outside the EEA).
 	us := NewConfig(func() Config { c := DefaultConfig(); c.ClusterRegion = "us-east-1"; return c }())
 	if f, _ := findingFor(Evaluate([]model.Resource{unpinned}, us), RuleEURegion); f.Status != Fail {
 		t.Fatalf("unpinned workload should fail when the cluster region is non-EU, got %s", f.Status)
+	}
+	euPin := workload("c", true, "eu-central-1")
+	if f, _ := findingFor(Evaluate([]model.Resource{euPin}, us), RuleEURegion); f.Status != Fail {
+		t.Fatalf("even an EU-pinned workload should fail on a declared non-EU cluster, got %s: %s", f.Status, f.Message)
 	}
 }
 

@@ -85,7 +85,6 @@ kind: RegionlockEuRegion
 metadata:
   name: regionlock-eu-region-placement
   labels: {{- include "regionlock.labels" . | nindent 4 }}
-  annotations: {{- include "regionlock.constraintHookAnnotations" . | nindent 4 }}
 spec:
   enforcementAction: {{ include "regionlock.gatekeeperAction" . }}
   match:
