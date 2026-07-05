@@ -265,7 +265,7 @@ func (r Report) Console() string {
 	if !r.Summary.Compliant {
 		verdict = "NON-COMPLIANT"
 	}
-	fmt.Fprintf(&b, "Regionlock evidence — %s\n", r.Ruleset.Title)
+	fmt.Fprintf(&b, "Regionlock evidence: %s\n", r.Ruleset.Title)
 	fmt.Fprintf(&b, "ruleset %s@%s  source=%s  generated=%s\n\n",
 		r.Ruleset.ID, r.Ruleset.Version, r.Source, r.GeneratedAt)
 	fmt.Fprintf(&b, "VERDICT: %s   score %.0f%%   (%d pass / %d fail / %d skip across %d checks)\n\n",
@@ -303,9 +303,9 @@ func (r Report) Markdown() string {
 		verdict = "❌ NON-COMPLIANT"
 	}
 	fmt.Fprintf(&b, "# Regionlock Evidence Report\n\n")
-	fmt.Fprintf(&b, "**%s** — compliance score **%.0f%%**\n\n", verdict, r.Summary.Score)
+	fmt.Fprintf(&b, "**%s**, compliance score **%.0f%%**\n\n", verdict, r.Summary.Score)
 	fmt.Fprintf(&b, "| | |\n|---|---|\n")
-	fmt.Fprintf(&b, "| Ruleset | `%s@%s` — %s |\n", r.Ruleset.ID, r.Ruleset.Version, r.Ruleset.Title)
+	fmt.Fprintf(&b, "| Ruleset | `%s@%s`, %s |\n", r.Ruleset.ID, r.Ruleset.Version, r.Ruleset.Title)
 	fmt.Fprintf(&b, "| Jurisdiction | %s |\n", r.Ruleset.Jurisdiction)
 	fmt.Fprintf(&b, "| Source | `%s` |\n", r.Source)
 	fmt.Fprintf(&b, "| Generated | %s |\n", r.GeneratedAt)

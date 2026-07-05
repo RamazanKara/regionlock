@@ -79,7 +79,7 @@ jobs:
 
       - name: wait for the admission webhook / constraints to be active
         run: |
-          # Retry until admission actually rejects the pod WITH a Regionlock denial —
+          # Retry until admission actually rejects the pod WITH a Regionlock denial,
           # not merely any apply error (which could be a transient webhook hiccup or,
           # on Gatekeeper, constraint-sync lag).
           for i in $(seq 1 30); do

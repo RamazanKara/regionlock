@@ -9,8 +9,8 @@ http://www.apache.org/licenses/LICENSE-2.0.
 This product bundles the following third-party Go modules, each under its own
 license:
 
-  - gopkg.in/yaml.v3 (Apache-2.0 / MIT) — YAML parsing
-  - github.com/go-pdf/fpdf (MIT) — PDF evidence rendering
+  - gopkg.in/yaml.v3 (Apache-2.0 / MIT): YAML parsing
+  - github.com/go-pdf/fpdf (MIT): PDF evidence rendering
 
 Regionlock evidences technical and organizational data-residency controls
 enforced on a Kubernetes cluster. It is not a cryptographic attestation that

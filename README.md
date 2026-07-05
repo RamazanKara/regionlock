@@ -1,6 +1,6 @@
 # 🔒 Regionlock
 
-**Prove your Kubernetes workloads stay in the EU — in one `helm install`.**
+**Prove your Kubernetes workloads stay in the EU in one `helm install`.**
 
 [![ci](https://github.com/RamazanKara/regionlock/actions/workflows/ci.yml/badge.svg)](https://github.com/RamazanKara/regionlock/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/RamazanKara/regionlock)](https://goreportcard.com/report/github.com/RamazanKara/regionlock)
@@ -12,10 +12,10 @@
 
 Regionlock enforces data-residency (EU, Germany, Switzerland, UK, or France) on any
 Kubernetes cluster (pin workloads to in-territory regions, require customer-managed keys,
-block unrestricted egress) **and** emits a signed, article-mapped **evidence report** —
-HTML, PDF, JSON, or SARIF — a DPO or auditor can actually use.
+block unrestricted egress) **and** emits a signed, article-mapped **evidence report** (HTML,
+PDF, JSON, or SARIF) that a DPO or auditor can actually use.
 
-It treats the regulation as *versioned policy code you subscribe to* — not a static
+It treats the regulation as *versioned policy code you subscribe to*, not a static
 checklist that rots. Enforcement runs on **Kyverno or OPA/Gatekeeper**, whichever your
 cluster already has.
 
@@ -51,7 +51,7 @@ ad-hoc Kyverno policies, a spreadsheet, and no artifact you can hand an auditor.
 confidential-compute alternatives (Constellation, Contrast, SCONE) went maintenance-mode or
 BSL/commercial.
 
-Regionlock is the missing **sovereignty layer on the CNCF stack you already run** —
+Regionlock is the missing **sovereignty layer on the CNCF stack you already run**:
 Apache-2.0, Kyverno/OPA-based, with the evidence report as a first-class output.
 
 ## What it does
@@ -59,8 +59,8 @@ Apache-2.0, Kyverno/OPA-based, with the evidence report as a first-class output.
 | | |
 |---|---|
 | **Enforce** | A Helm chart of tested **Kyverno** *or* **OPA/Gatekeeper** policies that block, at admission, workloads (incl. those from Deployments/CronJobs) not pinned to an in-territory region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName`/`externalIPs` services, and unrestricted-egress NetworkPolicies. Both engines are CI-verified to reach the same decision on a shared fixture set (offline via `kyverno apply` + `gator test`) and live in a kind cluster. |
-| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report — console, Markdown, **HTML**, **PDF**, JSON, **SARIF** — mapping every check to the specific article it evidences, stamped with a SHA-256 digest and optional ed25519 signature. |
-| **Gate** | `regionlock lint` fails a CI build on a residency violation, `regionlock diff` comments the residency delta on a PR, and the [GitHub Action](#github-action) uploads SARIF to the Security tab — so drift is caught in the PR, not the audit. |
+| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report in console, Markdown, **HTML**, **PDF**, JSON, or **SARIF**, mapping every check to the specific article it evidences, stamped with a SHA-256 digest and optional ed25519 signature. |
+| **Gate** | `regionlock lint` fails a CI build on a residency violation, `regionlock diff` comments the residency delta on a PR, and the [GitHub Action](#github-action) uploads SARIF to the Security tab, so drift is caught in the PR, not the audit. |
 
 ## Install
 
@@ -126,7 +126,7 @@ Run `regionlock policies` to print the live mapping. The versioned ruleset
 | `encryption-at-rest` | medium | GDPR Art. 32 |
 
 The mapping is **versioned** (`internal/regmap/data/eu-data-residency-v1.json`): pin a
-ruleset version, and updates arrive as a reviewable, changelogged bump — the tool doesn't
+ruleset version, and updates arrive as a reviewable, changelogged bump, so the tool doesn't
 silently rot when guidance shifts.
 
 ### Jurisdictions
@@ -141,7 +141,7 @@ Select one with `--regulation <id>` (CLI) or the matching region allow-list (cha
 | `uk-data-residency-v1` | United Kingdom | UK GDPR + DPA 2018 |
 | `fr-data-residency-v1` | France | GDPR + Loi Informatique et Libertés |
 
-Each ships its own in-territory region list. Adding another jurisdiction is one JSON file —
+Each ships its own in-territory region list. Adding another jurisdiction is one JSON file;
 see [docs/regulations.md](docs/regulations.md).
 
 ## GitHub Action
@@ -163,7 +163,7 @@ Gate every PR and surface violations in the Security tab:
 ```
 
 Or comment the residency **delta** of a PR (what it newly violates/resolves) with
-`regionlock diff` — see [examples/github](examples/github) and
+`regionlock diff`. See [examples/github](examples/github) and
 [docs/ci-integration.md](docs/ci-integration.md).
 
 ## How it compares
@@ -186,7 +186,7 @@ CLI (`--config`). Key knobs: `engine` (kyverno/gatekeeper/both), `enforcementAct
 ## Scope & honesty
 
 Regionlock evidences **technical and organizational placement controls** enforced on the
-cluster — region pinning, egress restriction, customer-managed keys, encryption-at-rest. It is
+cluster: region pinning, egress restriction, customer-managed keys, encryption-at-rest. It is
 **not** a cryptographic attestation that data never physically left the EEA (that needs
 confidential computing / TEE attestation). The evidence report says exactly this, so you can
 hand it to a DPO without over-claiming.

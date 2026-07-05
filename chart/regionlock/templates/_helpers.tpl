@@ -20,7 +20,7 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{- end -}}
 
 {{/* All nodeSelector region values across both keys (nulls dropped). A pod that
-     sets both keys ANDs them, so every value is a placement requirement — this
+     sets both keys ANDs them, so every value is a placement requirement, so this
      array must be checked (not a scalar coalesce) so a non-EU value on either key
      is caught. */}}
 {{- define "regionlock.regionNodeSelectorValues" -}}
@@ -58,7 +58,7 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{- end -}}
 
 {{/* Count of egress CIDRs that are a default route (/0) or default-route half
-     (/1 — catches the 0.0.0.0/1 + 128.0.0.0/1 split that together cover the whole
+     (/1, catches the 0.0.0.0/1 + 128.0.0.0/1 split that together cover the whole
      space). The pipe resets the projection so the filter's @ binds to each CIDR. */}}
 {{- define "regionlock.openEgressCount" -}}
 {{ `{{ length(request.object.spec.egress[].to[].ipBlock.cidr | [?ends_with(@, '/0') || ends_with(@, '/1')] || '') }}` }}
@@ -69,7 +69,7 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{ `{{ request.object.spec.storageClassName || '' }}` }}
 {{- end -}}
 
-{{/* The CMK annotation value (or '') — the annotation key is injected between two
+{{/* The CMK annotation value (or ''); the annotation key is injected between two
      literal-brace fragments so the dynamic key lands inside the JMESPath. */}}
 {{- define "regionlock.cmkAnnotationExpr" -}}
 {{ `{{ request.object.metadata.annotations."` }}{{ .Values.cmkAnnotation }}{{ `" || '' }}` }}
@@ -93,7 +93,7 @@ NOTE ON GATEKEEPER INSTALL ORDERING: Gatekeeper reconciles each ConstraintTempla
 into its backing CRD asynchronously, so on a COLD install the Constraint CR can be
 applied before its CRD is Established ("no matches for kind"). We deliberately keep
 both the ConstraintTemplate and the Constraint as NORMAL release resources (no Helm
-hooks) so that `helm upgrade` patches them in place — a hook with a delete policy
+hooks) so that `helm upgrade` patches them in place; a hook with a delete policy
 would tear the enforcing Constraint down and recreate it, opening a fail-open window
 on every upgrade. For a cold install, apply the chart, wait for the CRDs to be
 Established, then apply once more (see docs/installation.md); the e2e workflow does

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regionlock demo: stand up a throwaway kind cluster, install Kyverno + the
-# Regionlock chart, and watch a non-EU pod get BLOCKED at admission — then
+# Regionlock chart, and watch a non-EU pod get BLOCKED at admission, then
 # generate an audit-ready evidence report of the live cluster.
 #
 # Requires: kind, kubectl, helm, go (to build the regionlock CLI).
@@ -37,14 +37,14 @@ kubectl create namespace shop --dry-run=client -o yaml | kubectl apply -f -
 # Give the admission webhook a moment to register the new policies.
 sleep 5
 
-step "Applying a COMPLIANT pod (EU region) — expect ADMITTED"
+step "Applying a COMPLIANT pod (EU region), expect ADMITTED"
 if kubectl apply -f "$HERE/manifests/compliant-pod.yaml"; then
   green "✓ admitted: checkout-eu is pinned to eu-central-1"
 else
   red "unexpected: compliant pod was rejected"
 fi
 
-step "Applying a VIOLATING pod (us-east-1) — expect BLOCKED"
+step "Applying a VIOLATING pod (us-east-1), expect BLOCKED"
 if kubectl apply -f "$HERE/manifests/violating-pod.yaml" 2>/tmp/regionlock-deny.txt; then
   red "unexpected: violating pod was admitted (is Kyverno ready? is enforcementAction=Enforce?)"
 else

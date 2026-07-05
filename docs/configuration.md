@@ -37,7 +37,7 @@ Precedence for the region allow-list: **flags** > `--config` > the ruleset's
 | `policies.*` | all `true` | Toggle individual controls |
 
 > Note: admission cannot require a namespace to *have* an egress NetworkPolicy
-> (that is not an admission event) — use `regionlock lint --require-egress-policy`
+> (that is not an admission event). Use `regionlock lint --require-egress-policy`
 > in CI for default-allow-egress detection. See [limitations](limitations.md).
 
 ### Rolling out safely

@@ -38,7 +38,7 @@
     {
       "rule_id": "customer-managed-key",
       "name": "Storage uses customer-managed keys",
-      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the controller — not only the provider — controls the keys.",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the controller (not only the provider) controls the keys.",
       "severity": "medium",
       "rationale": "Customer-managed keys reduce provider access to plaintext and strengthen the sovereignty posture.",
       "articles": [

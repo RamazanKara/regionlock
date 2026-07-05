@@ -4,7 +4,7 @@ metadata:
   name: checkout-us
   namespace: shop
 spec:
-  # Pinned OUTSIDE the EU — Regionlock blocks this at admission.
+  # Pinned OUTSIDE the EU, so Regionlock blocks this at admission.
   nodeSelector:
     topology.kubernetes.io/region: us-east-1
   containers:

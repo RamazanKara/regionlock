@@ -32,7 +32,7 @@ spec:
           msg := sprintf("BLOCKED: Service type=ExternalName proxies to external endpoint %v (potential extra-EU transfer) [GDPR Art. 44]", [input.review.object.spec.externalName])
         }
 
-        # externalIPs is independent of ExternalName — gated by its own parameter.
+        # externalIPs is independent of ExternalName, gated by its own parameter.
         violation[{"msg": msg}] {
           input.review.kind.kind == "Service"
           count(object.get(input.review.object.spec, "externalIPs", [])) > 0

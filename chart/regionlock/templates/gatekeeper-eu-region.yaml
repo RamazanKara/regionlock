@@ -28,8 +28,8 @@ spec:
         package regionlockeuregion
 
         # The pod spec, resolved per workload kind so controllers (Deployment,
-        # StatefulSet, DaemonSet, ReplicaSet, Job, CronJob) are covered too — not
-        # just bare Pods. Mutually exclusive guards, so no conflicting values.
+        # StatefulSet, DaemonSet, ReplicaSet, Job, CronJob) are covered too, not
+        # only bare Pods. Mutually exclusive guards, so no conflicting values.
         pod_spec := input.review.object.spec {
           input.review.kind.kind == "Pod"
         }
@@ -67,7 +67,7 @@ spec:
           input.parameters.requireRegion
           not has_nodeselector_region
           not all_terms_region_constrained
-          msg := "BLOCKED: workload is not guaranteed to stay in an EU region — pin topology.kubernetes.io/region on nodeSelector or EVERY nodeAffinity term [GDPR Art. 44]"
+          msg := "BLOCKED: workload is not guaranteed to stay in an EU region. Pin topology.kubernetes.io/region on nodeSelector or EVERY nodeAffinity term [GDPR Art. 44]"
         }
 
         nodeselector_regions[v] {

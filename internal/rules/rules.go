@@ -57,7 +57,7 @@ type Config struct {
 	// (ignored when ClusterRegion is set).
 	RequireRegion bool
 	// RequireEgressPolicy flags workload namespaces that have no egress-restricting
-	// NetworkPolicy — Kubernetes defaults to allow-all egress, so the absence of a
+	// NetworkPolicy. Kubernetes defaults to allow-all egress, so the absence of a
 	// policy is itself an open egress path. Opt-in (off by default).
 	RequireEgressPolicy bool
 	// AllowExternalName permits Service type=ExternalName without failing.
@@ -184,7 +184,7 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 		}
 	}
 
-	// A declared cluster region outside the allow-list fails EVERY workload —
+	// A declared cluster region outside the allow-list fails EVERY workload:
 	// the operator has asserted the whole cluster physically runs outside the EEA.
 	if cfg.ClusterRegion != "" && !cfg.isEU(cfg.ClusterRegion) {
 		return []Finding{newFinding(r, RuleEURegion, Fail,
@@ -192,7 +192,7 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 	}
 
 	// A concrete non-EU region reachable via ANY affinity term (or the
-	// nodeSelector) is a violation regardless of pinning/cluster mode — the
+	// nodeSelector) is a violation regardless of pinning/cluster mode: the
 	// workload can schedule outside the EEA. This catches the "OR escape" where
 	// one term names a non-EU region and a sibling term is unconstrained.
 	var nonEU []string
@@ -259,7 +259,7 @@ func evalEgress(r model.Resource, cfg Config) []Finding {
 
 // evalEgressPolicyCoverage flags workload namespaces that have no
 // egress-governing NetworkPolicy. Kubernetes defaults to allow-all egress, so a
-// namespace with no egress policy has an open egress path — the absence of a
+// namespace with no egress policy has an open egress path: the absence of a
 // policy is itself the finding (there is no object to attach it to, so it is
 // reported at the namespace level). Opt-in via Config.RequireEgressPolicy.
 func evalEgressPolicyCoverage(resources []model.Resource) []Finding {
@@ -294,7 +294,7 @@ func evalEgressPolicyCoverage(resources []model.Resource) []Finding {
 // isUnrestricted reports whether a CIDR is a default route or a default-route
 // half (prefix length 0 or 1). Flagging /1 catches the split-route bypass where
 // 0.0.0.0/1 + 128.0.0.0/1 (or ::/1 + 8000::/1) together cover the whole address
-// space while individually evading a /0-only check — and a lone /1 is itself far
+// space while individually evading a /0-only check. A lone /1 is itself far
 // too broad to count as restricted egress.
 func isUnrestricted(cidr string) bool {
 	p, err := netip.ParsePrefix(strings.TrimSpace(cidr))
@@ -385,7 +385,7 @@ var cmkParamKeys = map[string]bool{
 }
 
 func scHasCMK(sc model.StorageClassSpec) bool {
-	// Match the parameter KEY exactly (only lower-cased) — CSI drivers read keys
+	// Match the parameter KEY exactly (only lower-cased): CSI drivers read keys
 	// verbatim, so a whitespace-padded key like " kmsKeyId " is NOT recognized by
 	// the driver and must not be treated as a CMK here. The value is trimmed.
 	for k, v := range sc.Parameters {

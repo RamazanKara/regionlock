@@ -6,7 +6,7 @@
 # generated evidence output
 /evidence/
 
-# signing keys — never commit
+# signing keys; never commit
 *.key
 signing.key
 

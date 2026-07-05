@@ -81,11 +81,11 @@ func sortEntries(e []DiffEntry) {
 // Markdown renders the diff as a PR-comment-ready summary.
 func (d Diff) Markdown() string {
 	var b strings.Builder
-	head := "### 🔒 Regionlock — data-residency check"
+	head := "### 🔒 Regionlock: data-residency check"
 	if d.Regressed {
-		head = "### 🔒 Regionlock — ❌ new data-residency violations"
+		head = "### 🔒 Regionlock: ❌ new data-residency violations"
 	} else if len(d.Resolved) > 0 {
-		head = "### 🔒 Regionlock — ✅ residency violations resolved"
+		head = "### 🔒 Regionlock: ✅ residency violations resolved"
 	}
 	fmt.Fprintf(&b, "%s\n\n", head)
 	fmt.Fprintf(&b, "Compliance score: **%.0f%%** → **%.0f%%**", d.BaselineScore, d.CurrentScore)
@@ -101,14 +101,14 @@ func (d Diff) Markdown() string {
 	if len(d.NewViolations) > 0 {
 		fmt.Fprintf(&b, "**%d new violation(s) introduced by this change:**\n\n", len(d.NewViolations))
 		for _, e := range d.NewViolations {
-			fmt.Fprintf(&b, "- `%s` — %s/%s (%s): %s\n", e.RuleID, e.Kind, e.Name, e.Namespace, e.Message)
+			fmt.Fprintf(&b, "- `%s` %s/%s (%s): %s\n", e.RuleID, e.Kind, e.Name, e.Namespace, e.Message)
 		}
 		fmt.Fprintln(&b)
 	}
 	if len(d.Resolved) > 0 {
 		fmt.Fprintf(&b, "**%d violation(s) resolved:**\n\n", len(d.Resolved))
 		for _, e := range d.Resolved {
-			fmt.Fprintf(&b, "- `%s` — %s/%s (%s)\n", e.RuleID, e.Kind, e.Name, e.Namespace)
+			fmt.Fprintf(&b, "- `%s` %s/%s (%s)\n", e.RuleID, e.Kind, e.Name, e.Namespace)
 		}
 		fmt.Fprintln(&b)
 	}

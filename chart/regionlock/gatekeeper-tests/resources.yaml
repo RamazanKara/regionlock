@@ -109,7 +109,7 @@ spec:
           containers: [{ name: c, image: nginx }]
 ---
 # OR escape: one term names an EU region, a sibling term has NO region constraint,
-# so the pod can schedule anywhere (OR semantics) — must be blocked (not a guaranteed pin).
+# so the pod can schedule anywhere (OR semantics); must be blocked (not a guaranteed pin).
 apiVersion: apps/v1
 kind: Deployment
 metadata: { name: dep-escape, namespace: shop }
@@ -128,7 +128,7 @@ spec:
                   - { key: disktype, operator: In, values: [ssd] }
       containers: [{ name: c, image: nginx }]
 ---
-# Legacy beta region label, non-EU — must be blocked (engines recognize both keys).
+# Legacy beta region label, non-EU; must be blocked (engines recognize both keys).
 apiVersion: v1
 kind: Pod
 metadata: { name: pod-beta-us, namespace: shop }
@@ -136,7 +136,7 @@ spec:
   nodeSelector: { failure-domain.beta.kubernetes.io/region: us-east-1 }
   containers: [{ name: c, image: nginx }]
 ---
-# Both region keys set to DIFFERENT values are ANDed — the pod can land on the
+# Both region keys set to DIFFERENT values are ANDed, so the pod can land on the
 # non-EU (beta) value, so it must be blocked (not passed on the EU topology value).
 apiVersion: v1
 kind: Pod
@@ -161,7 +161,7 @@ spec:
   containers: [{ name: c, image: nginx }]
 ---
 # Split default route: 0.0.0.0/1 + 128.0.0.0/1 cover the whole space but neither
-# ends in /0 — must still be blocked via the /1 check.
+# ends in /0; must still be blocked via the /1 check.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: np-split, namespace: shop }

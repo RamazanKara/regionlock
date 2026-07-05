@@ -1,13 +1,13 @@
 # Regionlock Evidence Report
 
-**❌ NON-COMPLIANT** — compliance score **0%**
+**❌ NON-COMPLIANT**, compliance score **0%**
 
 | | |
 |---|---|
-| Ruleset | `eu-data-residency-v1@1.0.0` — EU Data Residency & Sovereignty Baseline |
+| Ruleset | `eu-data-residency-v1@1.0.0`, EU Data Residency & Sovereignty Baseline |
 | Jurisdiction | European Union |
 | Source | `testdata/violating` |
-| Generated | 2026-07-05T10:27:36Z |
+| Generated | 2026-07-05T11:58:14Z |
 | Checks | 9 (0 pass / 9 fail / 0 skip) across 8 resources |
 
 ## Control summary
@@ -41,6 +41,6 @@
 
 ## Integrity
 
-- **sha256**: `e7c7607ca08099b55fce56d9a7409d8e5ec2b6765c53a0c56e4b64066853b080`
+- **sha256**: `e26ed7616a3e664d545d041b2df8852d6bf229b8654f641788f588a97aa80cd5`
 
 > This report evidences technical and organizational placement controls enforced on the cluster. It is not a cryptographic attestation that data never physically left the EEA.

@@ -14,9 +14,9 @@ plan or fix timeline within **10 working days**.
 Regionlock is a policy + evidence tool. Security-relevant areas include:
 
 - The **rule engine** producing a false *pass* (a violation that should have been
-  flagged but was not) — this is the highest-severity class, since it undermines
+  flagged but was not). This is the highest-severity class, since it undermines
   the evidence report.
-- The **evidence integrity** layer (digest/signature) — any way to alter a report
+- The **evidence integrity** layer (digest/signature): any way to alter a report
   without invalidating the digest or signature.
 - The **Helm chart / Rego** producing policies that fail open (admit a resource
   they should block).

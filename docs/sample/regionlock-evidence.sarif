@@ -7,7 +7,7 @@
         "driver": {
           "name": "regionlock",
           "informationUri": "https://github.com/RamazanKara/regionlock",
-          "version": "1.0.0",
+          "version": "1.0.0-dev",
           "rules": [
             {
               "id": "customer-managed-key",

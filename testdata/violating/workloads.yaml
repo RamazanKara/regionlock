@@ -11,7 +11,7 @@ spec:
     metadata:
       labels: { app: checkout-api }
     spec:
-      # Pinned OUTSIDE the EU — a third-country transfer.
+      # Pinned OUTSIDE the EU: a third-country transfer.
       nodeSelector:
         topology.kubernetes.io/region: us-east-1
       containers:
@@ -32,7 +32,7 @@ spec:
     metadata:
       labels: { app: sessions }
     spec:
-      # No region constraint at all — placement is unconstrained.
+      # No region constraint at all; placement is unconstrained.
       containers:
         - name: redis
           image: redis:7

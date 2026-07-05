@@ -20,12 +20,12 @@ curl -fsSL https://github.com/RamazanKara/regionlock/releases/latest/download/re
   | tar -xz regionlock && sudo mv regionlock /usr/local/bin/
 ```
 
-Release archives ship with a cosign-signed `checksums.txt` — see
+Release archives ship with a cosign-signed `checksums.txt`. See
 [RELEASING.md](https://github.com/RamazanKara/regionlock/blob/master/RELEASING.md) for verification.
 
 ## Policy pack (Helm chart)
 
-The chart requires a policy engine in the cluster — **Kyverno** (default) or
+The chart requires a policy engine in the cluster: **Kyverno** (default) or
 **OPA/Gatekeeper**.
 
 ```bash
@@ -48,8 +48,8 @@ install [Gatekeeper](https://open-policy-agent.github.io/gatekeeper/) first.
 
 Gatekeeper turns each ConstraintTemplate into a CRD **asynchronously**, so on a
 cold install the Constraint can be applied before its CRD exists (`no matches for
-kind`). The chart keeps Constraints as normal resources (so `helm upgrade` never
-tears down enforcement), which means a first-time Gatekeeper install should apply,
+kind`). The chart keeps Constraints as normal resources so `helm upgrade` never
+tears down enforcement. This means a first-time Gatekeeper install should apply,
 wait for the CRDs, then apply again:
 
 ```bash

@@ -14,7 +14,7 @@ metadata:
     policies.kyverno.io/description: >-
       Workloads must be pinned to an allow-listed EU cloud region via the
       topology.kubernetes.io/region label. Unconstrained or non-EU placement can
-      schedule pods — and the personal data they process — outside the EEA.
+      schedule pods (and the personal data they process) outside the EEA.
 spec:
   validationFailureAction: {{ .Values.enforcementAction }}
   background: true
@@ -68,7 +68,7 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: workload is not guaranteed to stay in an EU region — pin topology.kubernetes.io/region to an EU region via nodeSelector or on EVERY nodeAffinity term [GDPR Art. 44]
+          BLOCKED: workload is not guaranteed to stay in an EU region. Pin topology.kubernetes.io/region to an EU region via nodeSelector or on EVERY nodeAffinity term [GDPR Art. 44]
         deny:
           conditions:
             # No nodeSelector region pin, AND either no affinity terms or at least

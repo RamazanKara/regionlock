@@ -67,7 +67,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `regionlock %s — enforce & evidence EU data-residency on Kubernetes
+	fmt.Fprintf(os.Stderr, `regionlock %s: enforce & evidence EU data-residency on Kubernetes
 
 Usage:
   regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
@@ -454,7 +454,7 @@ func runPolicies(args []string) error {
 		fmt.Print(string(b))
 		return nil
 	}
-	fmt.Printf("%s@%s — %s (%s)\n", rs.ID, rs.Version, rs.Title, rs.Jurisdiction)
+	fmt.Printf("%s@%s  %s (%s)\n", rs.ID, rs.Version, rs.Title, rs.Jurisdiction)
 	if len(rs.Regions) > 0 {
 		fmt.Printf("in-territory regions: %s\n", strings.Join(rs.Regions, ", "))
 	}

@@ -13,7 +13,7 @@ metadata:
     regionlock.io/articles: "GDPR Art. 32"
     policies.kyverno.io/description: >-
       PersistentVolumeClaims must reference a customer-managed key so the data
-      controller — not only the cloud provider — controls the encryption keys.
+      controller (not only the cloud provider) controls the encryption keys.
 spec:
   validationFailureAction: {{ .Values.enforcementAction }}
   background: true
@@ -27,7 +27,7 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: PersistentVolumeClaim must reference a customer-managed key — annotate {{ .Values.cmkAnnotation }} or use an approved StorageClass [GDPR Art. 32]
+          BLOCKED: PersistentVolumeClaim must reference a customer-managed key. Annotate {{ .Values.cmkAnnotation }} or use an approved StorageClass [GDPR Art. 32]
         deny:
           conditions:
             all:

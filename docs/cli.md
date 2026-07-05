@@ -45,7 +45,7 @@ regionlock report --sign-key signing.key --format pdf,html --out ./evidence
 
 ## `lint`
 
-CI gate over manifests — non-zero exit on violations.
+CI gate over manifests. Exits non-zero on violations.
 
 | Flag | Default | Meaning |
 |---|---|---|

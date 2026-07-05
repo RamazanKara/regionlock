@@ -5,7 +5,7 @@ workflow does the rest via [GoReleaser](https://goreleaser.com).
 
 ## Steps
 
-1. Update [`CHANGELOG.md`](CHANGELOG.md) — move items from `Unreleased` into the
+1. Update [`CHANGELOG.md`](CHANGELOG.md): move items from `Unreleased` into the
    new version section.
 2. Ensure `chart/regionlock/Chart.yaml` `version`/`appVersion` match the release.
 3. Tag and push:
@@ -31,7 +31,7 @@ workflow does the rest via [GoReleaser](https://goreleaser.com).
 | `HOMEBREW_TAP_TOKEN` | pushing the Homebrew formula to `homebrew-tap` | Homebrew publish is skipped automatically |
 
 `id-token: write` (already granted in the workflow) enables keyless cosign
-signing — no long-lived signing key to manage.
+signing, so there is no long-lived signing key to manage.
 
 ## Verifying a release
 

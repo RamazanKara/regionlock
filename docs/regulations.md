@@ -39,7 +39,7 @@ file (regions + rule→article mappings) plus registration in
 
 ## Scope
 
-Every ruleset evidences **technical and organizational controls** — placement,
+Every ruleset evidences **technical and organizational controls**: placement,
 egress restriction, customer-managed keys, encryption at rest. None of them is a
 cryptographic attestation that data never physically left the territory; that
 requires confidential computing / TEE attestation.

@@ -6,13 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-07-05
+## [1.0.0] - 2026-07-05
 
 First stable release. The CLI commands/flags, the report and ruleset JSON schemas, the
-rule IDs, and the chart values are now a versioned public API — see
+rule IDs, and the chart values are now a versioned public API; see
 [docs/stability.md](docs/stability.md). The rule engine and both admission engines (Kyverno
-and OPA/Gatekeeper) are validated together — offline (`kyverno apply` + `gator test`, 17
-shared fixtures) and live in a kind cluster — and were hardened through seven adversarial
+and OPA/Gatekeeper) are validated together, offline (`kyverno apply` + `gator test`, 17
+shared fixtures) and live in a kind cluster. They were hardened through seven adversarial
 review rounds with every fail-open closed (nodeAffinity AND/OR reachability, OR-escape
 terms, dual region keys, controller coverage, split egress routes, StorageClass encryption).
 
@@ -21,17 +21,17 @@ terms, dual region keys, controller coverage, split egress routes, StorageClass 
   unpinned workloads pass without per-pod labels, while an explicit non-EU pin still fails.
 - **StorageClass-aware CMK & encryption**: a PVC satisfies the controls if its StorageClass
   carries a CMK parameter (`kmsKeyId`/`diskEncryptionSetID`/`disk-encryption-kms-key`) or
-  `encrypted: "true"` — not only the bespoke annotation. The chart mirrors this via an
+  `encrypted: "true"`, not only the bespoke annotation. The chart mirrors this via an
   `approvedStorageClasses` name allow-list.
 - **Default-allow egress detection** (`requireEgressPolicy`, opt-in): flags workload
   namespaces with no egress-restricting NetworkPolicy.
 - **`allowExternalIPs`** as a distinct knob (decoupled from `allowExternalName`); the legacy
   `failure-domain.beta.kubernetes.io/region` label is now recognized.
 - **Controller-level enforcement parity**: both engines now block non-EU pods created by
-  Deployments/StatefulSets/DaemonSets/ReplicaSets/Jobs/CronJobs, not just bare Pods
+  Deployments/StatefulSets/DaemonSets/ReplicaSets/Jobs/CronJobs, not only bare Pods
   (Kyverno via autogen; Gatekeeper via a kind-dispatched pod spec). Validated by CI.
 - **Two more jurisdictions**: `uk-data-residency-v1` (UK GDPR + DPA 2018) and
-  `fr-data-residency-v1` (GDPR + Loi Informatique et Libertés) — five in total.
+  `fr-data-residency-v1` (GDPR + Loi Informatique et Libertés), for five in total.
 - **`report --strict`**: exit non-zero when the report is non-compliant (report-as-a-gate).
 - **Live e2e CI**: a kind-based workflow installs the chart with a real admission webhook
   for each engine and proves a non-EU pod is blocked and a compliant pod admitted.
@@ -40,7 +40,7 @@ terms, dual region keys, controller coverage, split egress routes, StorageClass 
 
 ### Fixed (from adversarial review)
 - **Region AND/OR semantics**: nodeSelector and required nodeAffinity are now intersected
-  (AND), not unioned — so an EU-only workload constrained via both is no longer a false fail;
+  (AND), not unioned, so an EU-only workload constrained via both is no longer a false fail;
   an unsatisfiable intersection is flagged.
 - **externalIPs** enforcement is no longer silently disabled by `allowExternalName`.
 - **Split default routes** (`0.0.0.0/1 + 128.0.0.0/1`) are now caught (prefix ≤ /1), in the
@@ -51,7 +51,7 @@ terms, dual region keys, controller coverage, split egress routes, StorageClass 
 - `preferredDuringScheduling` nodeAffinity (a soft hint) is not treated as a hard EU pin.
 - Engine-aware post-install NOTES; docs no longer over-claim byte-identical engine parity.
 
-## [0.2.0] — 2026-07-05
+## [0.2.0] - 2026-07-05
 
 ### Added
 - **OPA/Gatekeeper engine** (`--set engine=kyverno|gatekeeper|both`): ConstraintTemplates +
@@ -78,19 +78,19 @@ terms, dual region keys, controller coverage, split egress routes, StorageClass 
 
 ### Fixed (from adversarial review)
 - **Critical fail-open**: the admission policies (Kyverno + Gatekeeper) now evaluate
-  `nodeAffinity` region terms, not just `nodeSelector`. Previously a non-EU pod pinned via
+  `nodeAffinity` region terms, not only `nodeSelector`. Previously a non-EU pod pinned via
   `nodeAffinity` was admitted while the CLI flagged it.
 - The scanner is now `nodeAffinity` operator-aware: only `In` with concrete values is a
   positive region pin. `NotIn`/`Exists`/`DoesNotExist` no longer read as an EU pin, and a
   constraint with no concrete region no longer passes.
 - Egress: `Service.spec.externalIPs` and NetworkPolicy egress rules with no peer selector
-  (allow-all) are now flagged by the CLI *and* both engines; default-route detection is
+  (allow-all) are now flagged by the CLI *and* both engines. Default-route detection is
   `/0`-suffix based (catches `0.0.0.0/0`, `::/0`, and non-canonical spellings).
 - Kyverno and Gatekeeper policies are now validated offline in CI (`kyverno apply` and
   `gator test`) to produce the same violations as the rule engine.
 - Release: the OCI chart push lowercases the GHCR owner path.
 
-## [0.1.0] — 2026-07-05
+## [0.1.0] - 2026-07-05
 
 Initial MVP.
 

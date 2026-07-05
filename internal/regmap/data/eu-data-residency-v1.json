@@ -4,7 +4,7 @@
   "title": "EU Data Residency & Sovereignty Baseline",
   "jurisdiction": "European Union",
   "updated": "2026-07-05",
-  "notes": "Maps Regionlock enforcement checks to the specific legal provisions they provide evidence of controls for. This is evidence of technical/organizational controls (Art. 32) and placement enforcement — not a cryptographic proof that data never physically left the EU.",
+  "notes": "Maps Regionlock enforcement checks to the specific legal provisions they provide evidence of controls for. This is evidence of technical/organizational controls (Art. 32) and placement enforcement, not a cryptographic proof that data never physically left the EU.",
   "regions": [
     "eu-central-1", "eu-central-2", "eu-west-1", "eu-west-2", "eu-west-3",
     "eu-north-1", "eu-south-1", "eu-south-2",
@@ -21,7 +21,7 @@
       "name": "Workloads pinned to an EU region",
       "description": "Every workload declares node placement constrained to an allow-listed EU cloud region via topology.kubernetes.io/region.",
       "severity": "high",
-      "rationale": "Unconstrained or non-EU placement can schedule pods — and the data they process — outside the EEA, constituting a third-country transfer.",
+      "rationale": "Unconstrained or non-EU placement can schedule pods (and the data they process) outside the EEA, constituting a third-country transfer.",
       "articles": [
         {
           "regulation": "GDPR",
@@ -67,7 +67,7 @@
     {
       "rule_id": "customer-managed-key",
       "name": "Storage uses customer-managed keys",
-      "description": "PersistentVolumeClaims are annotated with a customer-managed key (CMK) reference, so the data controller — not only the cloud provider — controls the encryption keys.",
+      "description": "PersistentVolumeClaims are annotated with a customer-managed key (CMK) reference, so the data controller (not only the cloud provider) controls the encryption keys.",
       "severity": "medium",
       "rationale": "Customer-managed keys reduce provider access to plaintext and strengthen the sovereignty posture required for sensitive EU data.",
       "articles": [

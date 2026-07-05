@@ -1,7 +1,7 @@
 # Stability & compatibility
 
 Regionlock follows [Semantic Versioning](https://semver.org). As of **1.0.0**, the
-surfaces below are a **stable public API** — breaking changes to them bump the MAJOR
+surfaces below are a **stable public API**. Breaking changes to them bump the MAJOR
 version:
 
 ## Stable surfaces
@@ -21,8 +21,8 @@ version:
 
 - Go package APIs under `internal/` (import path is not public).
 - Exact human-readable message wording (console/Markdown/PDF prose may change).
-- The set of bundled jurisdictions (new rulesets are additive; a ruleset's `version`
-  suffix, e.g. `-v1`, is bumped rather than mutated when legal mappings change).
+- The set of bundled jurisdictions. New rulesets are additive; a ruleset's `version`
+  suffix, e.g. `-v1`, is bumped rather than mutated when legal mappings change.
 
 ## Regulation-mapping versioning
 
@@ -37,5 +37,5 @@ evidence reports remain reproducible. Pin the ruleset version you audited agains
 - **OPA/Gatekeeper** ≥ 3.14 (the ConstraintTemplates resolve the pod spec per workload
   kind, covering Pods and the standard controllers directly).
 
-Both engines are validated to produce equivalent decisions — offline in CI (`kyverno apply`
+Both engines are validated to produce equivalent decisions, offline in CI (`kyverno apply`
 + `gator test`) and live in a kind cluster ([e2e workflow](https://github.com/RamazanKara/regionlock/blob/master/.github/workflows/e2e.yml)).

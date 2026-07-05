@@ -2,7 +2,7 @@
 
 Regionlock is deliberately honest about what it does. It enforces and evidences
 **declarative placement, egress, and key-management controls** on Kubernetes
-objects. It is a strong, auditable layer of defense — not a complete data-flow
+objects. It is a strong, auditable layer of defense, not a complete data-flow
 guarantee. Read this before relying on it for a compliance claim.
 
 ## The two residency models
@@ -10,15 +10,15 @@ guarantee. Read this before relying on it for a compliance claim.
 Regionlock supports two ways to establish that workloads run in-territory. Pick
 the one that matches how your cluster is built:
 
-1. **Workload pinning** (default) — each workload declares
+1. **Workload pinning** (default): each workload declares
    `topology.kubernetes.io/region` (via `nodeSelector` or a required `nodeAffinity`
    `In` term). Regionlock checks each workload. Best for multi-region clusters.
-2. **Cluster region** — set `clusterRegion` (CLI `--cluster-region`, or the config
+2. **Cluster region**: set `clusterRegion` (CLI `--cluster-region`, or the config
    file). Regionlock treats the whole cluster as sitting in that region, so
    unpinned workloads pass when the cluster region is in-territory, while an
    explicit non-EU workload pin still fails. Best for single-region clusters,
    where demanding a per-pod label on everything is unrealistic. Pair it with a
-   node-level control (a single-region node pool) — Regionlock evidences the
+   node-level control (a single-region node pool). Regionlock evidences the
    declared cluster region; it does not verify it.
 
 If you use neither and leave `requireRegion: true`, every unpinned workload is
@@ -36,13 +36,13 @@ single-region cluster you almost certainly want `clusterRegion`.
 | Namespace has **no** egress NetworkPolicy (default-allow egress) | ❌ not an admission event | ✅ opt-in (`requireEgressPolicy`) |
 
 Admission (Kyverno/Gatekeeper) acts on individual objects, so "the namespace has
-no policy" cannot be enforced there — it is a scan/CI finding only.
+no policy" cannot be enforced there. It is a scan/CI finding only.
 
 ## What Regionlock cannot see
 
 - **Actual data location or runtime data flow.** It checks *placement and network
   controls*, not where bytes physically are or travel. It is **not** a
-  cryptographic attestation that data never left a region — that needs
+  cryptographic attestation that data never left a region. That needs
   confidential computing / TEE attestation.
 - **Egress it can't model:** service-mesh egress gateways, cloud NAT, DNS-based
   exfiltration, sidecars, or a CNI that ignores NetworkPolicy. A namespace can be
@@ -53,7 +53,7 @@ no policy" cannot be enforced there — it is a scan/CI finding only.
 - **StorageClass encryption beyond recognized parameters.** The CLI reads common
   CSI parameters (`encrypted`, `kmsKeyId`, `diskEncryptionSetID`,
   `disk-encryption-kms-key`). A provider using a different key name, or encryption
-  configured outside the StorageClass, is not detected — use the per-PVC
+  configured outside the StorageClass, is not detected. Use the per-PVC
   annotation/label as the explicit override. Admission matches StorageClasses by
   **name** (`approvedStorageClasses`) since it cannot look up the object.
 - **preferredDuringScheduling nodeAffinity** is a soft hint and is *not* treated
@@ -75,7 +75,7 @@ no policy" cannot be enforced there — it is a scan/CI finding only.
 
 ## Reporting a gap
 
-If you find a bypass — an input that should be blocked but is admitted, or a
-compliant workload wrongly flagged — please open a
+If you find a bypass (an input that should be blocked but is admitted, or a
+compliant workload wrongly flagged), please open a
 [security advisory](https://github.com/RamazanKara/regionlock/security/advisories/new)
 or an issue. Fail-open bugs are treated as the highest severity.

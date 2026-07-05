@@ -59,7 +59,7 @@ func (r Resource) NamespaceOrDefault() string {
 // Kubernetes AND/OR affinity semantics).
 type PodTemplate struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	// RegionValues is the set of concrete regions the workload can reach — the
+	// RegionValues is the set of concrete regions the workload can reach: the
 	// union over required nodeAffinity terms of (term ∩ nodeSelector). An empty
 	// set on a constrained workload means the constraints are unsatisfiable.
 	RegionValues []string `json:"regionValues,omitempty"`
@@ -67,7 +67,7 @@ type PodTemplate struct {
 	// (via nodeSelector or any required nodeAffinity In term), EU or not.
 	HasRegionConstraint bool `json:"hasRegionConstraint"`
 	// Unconstrained is true when the workload can still schedule into ANY region
-	// despite naming some — e.g. an OR of nodeAffinity terms where one term has
+	// despite naming some, e.g. an OR of nodeAffinity terms where one term has
 	// no region constraint (a scheduling escape hatch). Such a workload is not
 	// guaranteed to stay in-region.
 	Unconstrained bool `json:"unconstrained,omitempty"`

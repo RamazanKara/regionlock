@@ -1,4 +1,4 @@
-// Package scan turns Kubernetes YAML — from files or a live cluster — into the
+// Package scan turns Kubernetes YAML (from files or a live cluster) into the
 // normalized model.Resource values the rule engine consumes.
 package scan
 
@@ -21,7 +21,7 @@ import (
 // region. Regionlock reads placement intent from it.
 const RegionKey = "topology.kubernetes.io/region"
 
-// regionKeys are the label keys recognized as carrying the cloud region — the
+// regionKeys are the label keys recognized as carrying the cloud region: the
 // current well-known key plus the deprecated (but still widely present) beta key.
 var regionKeys = []string{RegionKey, "failure-domain.beta.kubernetes.io/region"}
 
@@ -236,7 +236,7 @@ func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 
 	// nodeSelector region values across every recognized region key. nil means
 	// "the nodeSelector imposes no region constraint" (universe). If both region
-	// keys are set to different values, all are recorded as reachable — a node
+	// keys are set to different values, all are recorded as reachable: a node
 	// carrying a non-EU value satisfies the pin, so the non-EU region must not be
 	// dropped (fail-closed, matching the admission engines).
 	var nsSet map[string]bool
@@ -369,7 +369,7 @@ func extractNetworkPolicy(spec map[string]any) *model.NetworkPolicySpec {
 		}
 		to := sliceAt(em, "to")
 		// An egress rule with no peer selector (empty/absent `to`) permits egress
-		// to every destination — strictly more open than 0.0.0.0/0.
+		// to every destination, strictly more open than 0.0.0.0/0.
 		if len(to) == 0 {
 			np.Unrestricted = true
 			continue

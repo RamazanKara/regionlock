@@ -1,11 +1,11 @@
 # Regionlock
 
-**Prove your Kubernetes workloads stay in-territory — in one `helm install`.**
+**Prove your Kubernetes workloads stay in-territory in one `helm install`.**
 
 Regionlock enforces data-residency (EU, Germany, Switzerland, UK, or France) on any
 Kubernetes cluster and emits a signed, article-mapped **evidence report** a DPO or auditor
-can actually use. Enforcement runs on **Kyverno or OPA/Gatekeeper** — whichever your cluster
-already has — and the rule engine, both admission engines, and the evidence output are all
+can actually use. Enforcement runs on **Kyverno or OPA/Gatekeeper**, whichever your cluster
+already has, and the rule engine, both admission engines, and the evidence output are all
 validated together in CI.
 
 <div class="grid cards" markdown>
@@ -16,7 +16,7 @@ validated together in CI.
 
     Block, at admission, workloads not pinned to an in-territory region, PVCs without a
     customer-managed key or encryption, `ExternalName`/`externalIPs` services, and
-    unrestricted-egress NetworkPolicies — on Kyverno *or* Gatekeeper.
+    unrestricted-egress NetworkPolicies, on Kyverno *or* Gatekeeper.
 
     [:octicons-arrow-right-24: Installation](installation.md)
 
@@ -35,7 +35,7 @@ validated together in CI.
     ---
 
     `regionlock lint` fails the build, `regionlock diff` comments the residency delta on a
-    PR, and the GitHub Action uploads SARIF to the Security tab — drift is caught in the PR,
+    PR, and the GitHub Action uploads SARIF to the Security tab. Drift is caught in the PR,
     not the audit.
 
     [:octicons-arrow-right-24: CI integration](ci-integration.md)
@@ -106,16 +106,16 @@ Gatekeeper install ordering.
 | `uk-data-residency-v1` | United Kingdom | UK GDPR + DPA 2018 |
 | `fr-data-residency-v1` | France | GDPR + Loi Informatique et Libertés |
 
-Adding another jurisdiction is one JSON file — see [Regulations](regulations.md).
+Adding another jurisdiction is one JSON file. See [Regulations](regulations.md).
 
 ## Why trust it
 
 Both policy engines and the CLI are validated to reach the **same decision** on a shared
-fixture set — offline (`kyverno apply` + `gator test`, 17 fixtures) and live in a kind
+fixture set, offline (`kyverno apply` + `gator test`, 17 fixtures) and live in a kind
 cluster. The residency logic uses a principled *reachability* model (nodeSelector ∩
 nodeAffinity, OR-of-terms, escape detection) and was hardened through repeated adversarial
 review. What it does **not** attempt is stated plainly in [Limitations](limitations.md):
-it evidences placement, egress, and key-management controls — it is not a cryptographic
+it evidences placement, egress, and key-management controls. It is not a cryptographic
 proof that data never physically left a region.
 
 !!! quote "Scope"

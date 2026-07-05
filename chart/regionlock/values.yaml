@@ -13,7 +13,7 @@ enforcementAction: Enforce
 requireRegion: true
 
 # -- Permit Service type=ExternalName. Off by default: an ExternalName can proxy
-# traffic — and data — to an endpoint outside the EEA.
+# traffic (and data) to an endpoint outside the EEA.
 allowExternalName: false
 
 # -- Permit Service spec.externalIPs. Off by default; independent of
@@ -69,7 +69,7 @@ encryptionLabel: regionlock.io/encrypted
 # key. A PVC that uses one of these satisfies the CMK and encryption controls
 # without needing the per-PVC annotation/label (mirrors the CLI, which reads the
 # StorageClass parameters directly). Admission cannot look up the StorageClass
-# object, so it matches by name — list your encrypted, CMK-backed StorageClasses.
+# object, so it matches by name; list your encrypted, CMK-backed StorageClasses.
 approvedStorageClasses: []
 
 # -- Namespaces exempt from every Regionlock policy.

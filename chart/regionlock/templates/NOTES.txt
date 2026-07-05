@@ -36,7 +36,7 @@ Generate an audit-ready evidence report of the live cluster:
 
 {{- if eq .Values.enforcementAction "Audit" }}
 
-NOTE: running in Audit mode — violations are recorded (PolicyReports for Kyverno,
+NOTE: running in Audit mode; violations are recorded (PolicyReports for Kyverno,
 audit results for Gatekeeper) but NOT blocked. Flip to Enforce when ready by
 re-running your install/upgrade with --set enforcementAction=Enforce --reuse-values,
 e.g.:

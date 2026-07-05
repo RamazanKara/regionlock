@@ -100,7 +100,7 @@ jobs:
           # kyverno apply reuses the same test resources; Kyverno covers controllers
           # via autogen and reaches the same 17 violations Gatekeeper reaches explicitly.
           # kyverno apply exits non-zero when a policy fails, which is expected
-          # here — capture the output without letting `set -e` abort the step.
+          # here; capture the output without letting `set -e` abort the step.
           out=$(kyverno apply /tmp/ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml || true)
           echo "$out" | tail -3
           echo "$out" | grep -qE "fail: 17" || { echo "expected fail: 17"; exit 1; }

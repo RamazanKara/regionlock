@@ -13,7 +13,7 @@ metadata:
     regionlock.io/articles: "GDPR Art. 32"
     policies.kyverno.io/description: >-
       PersistentVolumeClaims must declare encryption at rest via the configured
-      label — a baseline technical measure under the security-of-processing duty.
+      label, a baseline technical measure under the security-of-processing duty.
 spec:
   validationFailureAction: {{ .Values.enforcementAction }}
   background: true
@@ -27,7 +27,7 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: PersistentVolumeClaim must declare encryption at rest — label {{ .Values.encryptionLabel }}=true or use an approved StorageClass [GDPR Art. 32]
+          BLOCKED: PersistentVolumeClaim must declare encryption at rest. Label {{ .Values.encryptionLabel }}=true or use an approved StorageClass [GDPR Art. 32]
         deny:
           conditions:
             all:
