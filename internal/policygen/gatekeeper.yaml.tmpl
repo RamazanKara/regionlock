@@ -1,0 +1,391 @@
+---
+# Source: regionlock/templates/gatekeeper-cmk.yaml
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlockcmk
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: customer-managed-key
+    regionlock.io/articles: "GDPR Art. 32"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockCmk
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            cmkAnnotation:
+              type: string
+            approvedStorageClasses:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlockcmk
+
+        violation[{"msg": msg}] {
+          ann := object.get(input.review.object.metadata, "annotations", {})
+          object.get(ann, input.parameters.cmkAnnotation, "") == ""
+          not approved_sc
+          msg := sprintf("BLOCKED: PersistentVolumeClaim must reference a customer-managed key (annotation %v or an approved StorageClass) [GDPR Art. 32]", [input.parameters.cmkAnnotation])
+        }
+
+        approved_sc {
+          sc := object.get(input.review.object.spec, "storageClassName", "")
+          sc != ""
+          input.parameters.approvedStorageClasses[_] == sc
+        }
+---
+# Source: regionlock/templates/gatekeeper-egress.yaml
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlocknoegress
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: no-non-eu-egress
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 46"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockNoEgress
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            allowExternalName:
+              type: boolean
+            allowExternalIPs:
+              type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlocknoegress
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          input.review.object.spec.type == "ExternalName"
+          not input.parameters.allowExternalName
+          msg := sprintf("BLOCKED: Service type=ExternalName proxies to external endpoint %v (potential extra-EU transfer) [GDPR Art. 44]", [input.review.object.spec.externalName])
+        }
+
+        # externalIPs is independent of ExternalName, gated by its own parameter.
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          count(object.get(input.review.object.spec, "externalIPs", [])) > 0
+          not input.parameters.allowExternalIPs
+          msg := sprintf("BLOCKED: Service exposes externalIPs %v (destination not verifiable as EU) [GDPR Art. 44]", [input.review.object.spec.externalIPs])
+        }
+
+        # an egress rule with no peer selector (empty/absent `to`) permits egress anywhere.
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "NetworkPolicy"
+          rule := input.review.object.spec.egress[_]
+          count(object.get(rule, "to", [])) == 0
+          msg := "BLOCKED: NetworkPolicy egress rule with no peer selector permits egress to any destination [GDPR Art. 46]"
+        }
+
+        # Constant message so multiple open CIDRs in one policy dedupe to a single
+        # violation (matching the Kyverno per-policy behavior).
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "NetworkPolicy"
+          unrestricted(input.review.object.spec.egress[_].to[_].ipBlock.cidr)
+          msg := "BLOCKED: NetworkPolicy permits a default-route egress (/0 or /1), which can reach non-EU destinations [GDPR Art. 46]"
+        }
+
+        # A default route (/0) or a default-route half (/1, e.g. the 0.0.0.0/1 +
+        # 128.0.0.0/1 split that together cover the whole space) is unrestricted.
+        unrestricted(cidr) { endswith(cidr, "/0") }
+        unrestricted(cidr) { endswith(cidr, "/1") }
+---
+# Source: regionlock/templates/gatekeeper-encryption.yaml
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlockencryption
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: encryption-at-rest
+    regionlock.io/articles: "GDPR Art. 32"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockEncryption
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            encryptionLabel:
+              type: string
+            approvedStorageClasses:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlockencryption
+
+        violation[{"msg": msg}] {
+          labels := object.get(input.review.object.metadata, "labels", {})
+          object.get(labels, input.parameters.encryptionLabel, "") != "true"
+          not approved_sc
+          msg := sprintf("BLOCKED: PersistentVolumeClaim must declare encryption at rest (%v=true or an approved StorageClass) [GDPR Art. 32]", [input.parameters.encryptionLabel])
+        }
+
+        approved_sc {
+          sc := object.get(input.review.object.spec, "storageClassName", "")
+          sc != ""
+          input.parameters.approvedStorageClasses[_] == sc
+        }
+---
+# Source: regionlock/templates/gatekeeper-eu-region.yaml
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: regionlockeuregion
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: eu-region-placement
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 45; EU Data Act Art. 32"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RegionlockEuRegion
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            requireRegion:
+              type: boolean
+            allowedRegions:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package regionlockeuregion
+
+        # The pod spec, resolved per workload kind so controllers (Deployment,
+        # StatefulSet, DaemonSet, ReplicaSet, Job, CronJob) are covered too, not
+        # only bare Pods. Mutually exclusive guards, so no conflicting values.
+        pod_spec := input.review.object.spec {
+          input.review.kind.kind == "Pod"
+        }
+        pod_spec := input.review.object.spec.template.spec {
+          controller_kinds[input.review.kind.kind]
+        }
+        pod_spec := input.review.object.spec.jobTemplate.spec.template.spec {
+          input.review.kind.kind == "CronJob"
+        }
+
+        controller_kinds := {"Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job"}
+
+        # The region label keys Regionlock recognizes: the well-known key and the
+        # deprecated beta key (matching the CLI).
+        region_keys := {"topology.kubernetes.io/region", "failure-domain.beta.kubernetes.io/region"}
+
+        # nodeSelector region pin outside the EU (either region key).
+        violation[{"msg": msg}] {
+          region := nodeselector_regions[_]
+          not region_allowed(region)
+          msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeSelector) violates EU data-residency policy [GDPR Art. 44]", [region])
+        }
+
+        # required nodeAffinity In-term pinning region outside the EU.
+        violation[{"msg": msg}] {
+          region := affinity_region_values[_]
+          not region_allowed(region)
+          msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeAffinity) violates EU data-residency policy [GDPR Art. 44]", [region])
+        }
+
+        # Not guaranteed to stay in-region: no nodeSelector region pin AND the
+        # affinity does not constrain every term to a region (an OR escape hatch,
+        # or no affinity at all).
+        violation[{"msg": msg}] {
+          input.parameters.requireRegion
+          not has_nodeselector_region
+          not all_terms_region_constrained
+          msg := "BLOCKED: workload is not guaranteed to stay in an EU region. Pin topology.kubernetes.io/region on nodeSelector or EVERY nodeAffinity term [GDPR Art. 44]"
+        }
+
+        nodeselector_regions[v] {
+          region_keys[k]
+          v := pod_spec.nodeSelector[k]
+        }
+
+        has_nodeselector_region {
+          nodeselector_regions[_]
+        }
+
+        affinity_terms := pod_spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms
+
+        all_terms_region_constrained {
+          count(affinity_terms) > 0
+          count([t | t := affinity_terms[_]; term_has_region(t)]) == count(affinity_terms)
+        }
+
+        # A term constrains the region only if it has an In-expression on a region
+        # key with a non-empty values list (an empty In pins nothing).
+        term_has_region(t) {
+          expr := t.matchExpressions[_]
+          region_keys[expr.key]
+          expr.operator == "In"
+          count(expr.values) > 0
+        }
+
+        affinity_region_values[v] {
+          term := affinity_terms[_]
+          expr := term.matchExpressions[_]
+          region_keys[expr.key]
+          expr.operator == "In"
+          v := expr.values[_]
+        }
+
+        region_allowed(region) {
+          input.parameters.allowedRegions[_] == region
+        }
+---
+# Source: regionlock/templates/gatekeeper-cmk.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockCmk
+metadata:
+  name: regionlock-customer-managed-key
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["PersistentVolumeClaim"]
+    excludedNamespaces:
+      - kube-system
+      - kube-node-lease
+      - kube-public
+      - kyverno
+      - regionlock
+  parameters:
+    cmkAnnotation: "regionlock.io/cmk-key-id"
+    approvedStorageClasses: []
+---
+# Source: regionlock/templates/gatekeeper-encryption.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockEncryption
+metadata:
+  name: regionlock-encryption-at-rest
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["PersistentVolumeClaim"]
+    excludedNamespaces:
+      - kube-system
+      - kube-node-lease
+      - kube-public
+      - kyverno
+      - regionlock
+  parameters:
+    encryptionLabel: "regionlock.io/encrypted"
+    approvedStorageClasses: []
+---
+# Source: regionlock/templates/gatekeeper-eu-region.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockEuRegion
+metadata:
+  name: regionlock-eu-region-placement
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet", "ReplicaSet"]
+      - apiGroups: ["batch"]
+        kinds: ["Job", "CronJob"]
+    excludedNamespaces:
+      - kube-system
+      - kube-node-lease
+      - kube-public
+      - kyverno
+      - regionlock
+  parameters:
+    requireRegion: true
+    allowedRegions:
+«regions 6»
+---
+# Source: regionlock/templates/gatekeeper-egress.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RegionlockNoEgress
+metadata:
+  name: regionlock-no-non-eu-egress
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+      - apiGroups: ["networking.k8s.io"]
+        kinds: ["NetworkPolicy"]
+    excludedNamespaces:
+      - kube-system
+      - kube-node-lease
+      - kube-public
+      - kyverno
+      - regionlock
+  parameters:
+    allowExternalName: false
+    allowExternalIPs: false

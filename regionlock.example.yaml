@@ -39,6 +39,14 @@ cmkAnnotation: regionlock.io/cmk-key-id
 # if it uses a StorageClass with `encrypted: "true"` or a CMK parameter.
 encryptionLabel: regionlock.io/encrypted
 
+# Node label keys the scanner reads as the cloud region. Override this only for a
+# cluster that uses a non-standard region label, otherwise those workloads read as
+# unpinned. The bundled admission policies still match the standard topology keys.
+# Default: the two standard topology keys.
+# regionLabelKeys:
+#   - topology.kubernetes.io/region
+#   - example.com/region
+
 # Documented, time-boxed exceptions. A waiver turns a matching *failure* into a
 # "waived" result (recorded in the report, not counted as a violation) until it
 # expires. `rule`, `expires` (YYYY-MM-DD) and `reason` are required; empty

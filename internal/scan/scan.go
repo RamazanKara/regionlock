@@ -21,9 +21,26 @@ import (
 // region. Regionlock reads placement intent from it.
 const RegionKey = "topology.kubernetes.io/region"
 
-// regionKeys are the label keys recognized as carrying the cloud region: the
-// current well-known key plus the deprecated (but still widely present) beta key.
-var regionKeys = []string{RegionKey, "failure-domain.beta.kubernetes.io/region"}
+// DefaultRegionKeys are the label keys recognized as carrying the cloud region:
+// the current well-known key plus the deprecated (but still widely present) beta
+// key.
+var DefaultRegionKeys = []string{RegionKey, "failure-domain.beta.kubernetes.io/region"}
+
+// regionKeys is the active set of region label keys. Overridable via
+// SetRegionKeys for clusters using a non-standard region label.
+var regionKeys = DefaultRegionKeys
+
+// SetRegionKeys overrides the label keys the scanner treats as the cloud region
+// (for clusters that use a non-standard label). Passing an empty slice restores
+// the defaults. Regionlock is a single-shot CLI, so this is set once before a
+// scan. Note: the bundled admission policies still match the standard keys.
+func SetRegionKeys(keys []string) {
+	if len(keys) == 0 {
+		regionKeys = DefaultRegionKeys
+		return
+	}
+	regionKeys = append([]string(nil), keys...)
+}
 
 func isRegionKey(k string) bool {
 	for _, rk := range regionKeys {

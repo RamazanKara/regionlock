@@ -1,0 +1,353 @@
+---
+# Source: regionlock/templates/policy-cmk.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-customer-managed-key
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: customer-managed-key
+    policies.kyverno.io/title: Customer-Managed Key Storage
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: PersistentVolumeClaim
+    regionlock.io/articles: "GDPR Art. 32"
+    policies.kyverno.io/description: >-
+      PersistentVolumeClaims must reference a customer-managed key so the data
+      controller (not only the cloud provider) controls the encryption keys.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pvc-requires-cmk
+      match:
+        any:
+          - resources:
+              kinds:
+                - PersistentVolumeClaim
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: PersistentVolumeClaim must reference a customer-managed key. Annotate regionlock.io/cmk-key-id or use an approved StorageClass [GDPR Art. 32]
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.object.metadata.annotations.\"regionlock.io/cmk-key-id\" || '' }}"
+                operator: Equals
+                value: ""
+              - key: "{{ request.object.spec.storageClassName || '' }}"
+                operator: AnyNotIn
+                value: []
+---
+# Source: regionlock/templates/policy-egress.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-no-non-eu-egress
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: no-non-eu-egress
+    policies.kyverno.io/title: No Non-EU Egress
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: Service, NetworkPolicy
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 46"
+    policies.kyverno.io/description: >-
+      Services must not proxy to external endpoints (ExternalName) and
+      NetworkPolicies must not permit unrestricted (0.0.0.0/0, ::/0) egress that
+      could carry personal data to destinations outside the EEA.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: no-externalname-service
+      match:
+        any:
+          - resources:
+              kinds:
+                - Service
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: Service type=ExternalName proxies outside the cluster and may transfer data outside the EEA [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.object.spec.type || '' }}"
+                operator: Equals
+                value: ExternalName
+    - name: no-external-ips-service
+      match:
+        any:
+          - resources:
+              kinds:
+                - Service
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: Service exposes externalIPs, whose destination is not verifiable as EU [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: "{{ length(request.object.spec.externalIPs || '') }}"
+                operator: GreaterThan
+                value: 0
+    - name: no-unrestricted-egress-cidr
+      match:
+        any:
+          - resources:
+              kinds:
+                - NetworkPolicy
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: NetworkPolicy permits a default-route egress (/0), which can reach non-EU destinations [GDPR Art. 46]
+        deny:
+          conditions:
+            all:
+              - key: "{{ length(request.object.spec.egress[].to[].ipBlock.cidr | [?ends_with(@, '/0') || ends_with(@, '/1')] || '') }}"
+                operator: GreaterThan
+                value: 0
+    - name: no-open-egress-rule
+      match:
+        any:
+          - resources:
+              kinds:
+                - NetworkPolicy
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: NetworkPolicy egress rule with no peer selector permits egress to any destination [GDPR Art. 46]
+        deny:
+          conditions:
+            all:
+              - key: "{{ length(request.object.spec.egress[] || '') }}"
+                operator: GreaterThan
+                value: "{{ length(request.object.spec.egress[?to] || '') }}"
+---
+# Source: regionlock/templates/policy-encryption.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-encryption-at-rest
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: encryption-at-rest
+    policies.kyverno.io/title: Encryption At Rest
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: PersistentVolumeClaim
+    regionlock.io/articles: "GDPR Art. 32"
+    policies.kyverno.io/description: >-
+      PersistentVolumeClaims must declare encryption at rest via the configured
+      label, a baseline technical measure under the security-of-processing duty.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: pvc-requires-encryption-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - PersistentVolumeClaim
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: PersistentVolumeClaim must declare encryption at rest. Label regionlock.io/encrypted=true or use an approved StorageClass [GDPR Art. 32]
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.object.metadata.labels.\"regionlock.io/encrypted\" || '' }}"
+                operator: NotEquals
+                value: "true"
+              - key: "{{ request.object.spec.storageClassName || '' }}"
+                operator: AnyNotIn
+                value: []
+---
+# Source: regionlock/templates/policy-eu-region.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: regionlock-eu-region-placement
+  labels:
+    app.kubernetes.io/name: regionlock
+    app.kubernetes.io/managed-by: regionlock
+    app.kubernetes.io/instance: regionlock
+    app.kubernetes.io/version: "1.0.0"
+    regionlock.io/ruleset: «.RulesetID»
+  annotations:
+    regionlock.io/rule-id: eu-region-placement
+    policies.kyverno.io/title: EU Region Placement
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/category: EU Data Residency
+    policies.kyverno.io/subject: Pod
+    regionlock.io/articles: "GDPR Art. 44; GDPR Art. 45; EU Data Act Art. 32"
+    policies.kyverno.io/description: >-
+      Workloads must be pinned to an allow-listed EU cloud region via the
+      topology.kubernetes.io/region label. Unconstrained or non-EU placement can
+      schedule pods (and the personal data they process) outside the EEA.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: region-nodeselector-must-be-eu
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.nodeSelector.\"topology.kubernetes.io/region\" || request.object.spec.nodeSelector.\"failure-domain.beta.kubernetes.io/region\" || '' }}"
+            operator: NotEquals
+            value: ""
+      validate:
+        message: >-
+          BLOCKED: non-EU region on nodeSelector (topology.kubernetes.io/region / failure-domain.beta.kubernetes.io/region) violates EU data-residency policy [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: "{{ [request.object.spec.nodeSelector.\"topology.kubernetes.io/region\", request.object.spec.nodeSelector.\"failure-domain.beta.kubernetes.io/region\"][?@] }}"
+                operator: AnyNotIn
+                value:
+«regions 18»
+    - name: region-nodeaffinity-must-be-eu
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: nodeAffinity pins a non-EU region ("{{ request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In' && values || key=='failure-domain.beta.kubernetes.io/region' && operator=='In' && values][].values[] }}") violating EU data-residency policy [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In' && values || key=='failure-domain.beta.kubernetes.io/region' && operator=='In' && values][].values[] }}"
+                operator: AnyNotIn
+                value:
+«regions 18»
+    - name: region-must-be-declared
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+                - kyverno
+                - regionlock
+      validate:
+        message: >-
+          BLOCKED: workload is not guaranteed to stay in an EU region. Pin topology.kubernetes.io/region to an EU region via nodeSelector or on EVERY nodeAffinity term [GDPR Art. 44]
+        deny:
+          conditions:
+            # No nodeSelector region pin, AND either no affinity terms or at least
+            # one affinity term is region-unconstrained (an OR escape hatch).
+            all:
+              - key: "{{ request.object.spec.nodeSelector.\"topology.kubernetes.io/region\" || request.object.spec.nodeSelector.\"failure-domain.beta.kubernetes.io/region\" || '' }}"
+                operator: Equals
+                value: ""
+            any:
+              - key: "{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms || '') }}"
+                operator: Equals
+                value: 0
+              - key: "{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[?matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In' && values || key=='failure-domain.beta.kubernetes.io/region' && operator=='In' && values]] || '') }}"
+                operator: NotEquals
+                value: "{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms || '') }}"

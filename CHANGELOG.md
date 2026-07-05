@@ -33,6 +33,13 @@ All notable changes to this project are documented here. The format follows
   `regionlock version --json` for machine-readable build info.
 - **Distribution**: Artifact Hub chart annotations + `chart/artifacthub-repo.yml`, and a
   GitLab CI example (`examples/gitlab-ci.yml`).
+- **`regionlock policy --regulation X --engine kyverno|gatekeeper|both`**: generate
+  ready-to-apply admission policies for a jurisdiction straight from its ruleset, with no
+  Helm. The policy bodies are the chart's, verbatim; CI asserts the generated policies reach
+  the same shared 17-fixture violation count, so admission enforces exactly what the CLI
+  evidences from a single source.
+- **`regionLabelKeys` / `--region-label-keys`**: read a non-standard node label as the cloud
+  region, so clusters using a custom region label are not mass-flagged as unpinned.
 
 ## [1.0.0] - 2026-07-05
 

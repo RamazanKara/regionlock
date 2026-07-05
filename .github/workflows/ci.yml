@@ -83,11 +83,21 @@ jobs:
           n=$(gator test -f /tmp/gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
           echo "gator reported $n violations"
           test "$n" -eq 17 || { echo "expected 17 violations, got $n"; exit 1; }
+      - name: CLI-generated Gatekeeper policies reach the same count
+        run: |
+          go build -o /tmp/regionlock ./cmd/regionlock
+          /tmp/regionlock policy --regulation eu-data-residency-v1 --engine gatekeeper > /tmp/gen-gk.yaml
+          n=$(gator test -f /tmp/gen-gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
+          echo "regionlock policy (gatekeeper) gator reported $n violations"
+          test "$n" -eq 17 || { echo "generated Gatekeeper policy expected 17, got $n"; exit 1; }
 
   kyverno:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - uses: azure/setup-helm@v4
       - name: install kyverno CLI
         run: |
@@ -105,3 +115,10 @@ jobs:
           echo "$out" | tail -3
           echo "$out" | grep -qE "fail: 17" || { echo "expected fail: 17"; exit 1; }
           echo "$out" | grep -E "pod-eu|pvc-good|pod-aff-eu" && { echo "a compliant resource was flagged"; exit 1; } || echo "compliant resources clean"
+      - name: CLI-generated Kyverno policies reach the same count
+        run: |
+          go build -o /tmp/regionlock ./cmd/regionlock
+          /tmp/regionlock policy --regulation eu-data-residency-v1 --engine kyverno > /tmp/gen-ky.yaml
+          out=$(kyverno apply /tmp/gen-ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml || true)
+          echo "$out" | tail -3
+          echo "$out" | grep -qE "fail: 17" || { echo "generated Kyverno policy expected fail: 17"; exit 1; }

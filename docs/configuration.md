@@ -15,6 +15,7 @@ the selected ruleset's defaults.
 | `allowExternalIPs` / `--allow-external-ips` | `false` | Permit `Service` spec.externalIPs (independent of the above) |
 | `cmkAnnotation` | `regionlock.io/cmk-key-id` | PVC annotation referencing a customer key (also satisfied by a StorageClass CMK parameter) |
 | `encryptionLabel` | `regionlock.io/encrypted` | PVC label asserting encryption (also satisfied by an encrypted StorageClass) |
+| `regionLabelKeys` / `--region-label-keys` | standard topology keys | Node label keys read as the cloud region; override for a non-standard region label (admission still matches the standard keys) |
 | `--strict` (report) | `false` | Exit non-zero when the report is non-compliant |
 
 Precedence for the region allow-list: **flags** > `--config` > the ruleset's

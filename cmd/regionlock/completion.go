@@ -7,13 +7,14 @@ import (
 
 // completionCommands and completionFlags are the single source of truth for the
 // generated shell completions, so they cannot drift from the dispatch table.
-var completionCommands = []string{"report", "lint", "diff", "policies", "explain", "keygen", "version", "completion", "help"}
+var completionCommands = []string{"report", "lint", "diff", "policies", "policy", "explain", "keygen", "version", "completion", "help"}
 
 var completionFlags = []string{
 	"--manifests", "--regulation", "--config", "--format", "--out", "--cluster-region",
-	"--fail-on", "--strict", "--sign-key", "--json", "--values", "--require-region",
+	"--fail-on", "--strict", "--sign-key", "--json", "--values", "--engine", "--require-region",
 	"--require-egress-policy", "--allow-external-name", "--allow-external-ips",
-	"--baseline", "--current", "--fail-on-regression", "--kubeconfig", "--context",
+	"--region-label-keys", "--baseline", "--current", "--fail-on-regression",
+	"--kubeconfig", "--context",
 }
 
 func runCompletion(args []string) error {

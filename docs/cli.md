@@ -7,6 +7,7 @@ regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] 
 regionlock lint     --manifests DIR [--fail-on any|high]
 regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
 regionlock policies [--regulation ID] [--json | --values]
+regionlock policy   [--regulation ID] [--engine kyverno|gatekeeper|both]
 regionlock explain  [RULE-ID] [--regulation ID]
 regionlock keygen   [--out FILE]
 regionlock completion bash|zsh|fish|powershell
@@ -88,6 +89,21 @@ enforcement uses the same regions the CLI evidences:
 regionlock policies --regulation in-data-residency-v1 --values > in.yaml
 helm upgrade --install regionlock ./chart/regionlock -f in.yaml
 ```
+
+## `policy`
+
+Generate ready-to-apply admission policies for a jurisdiction, straight from its ruleset (no
+Helm needed). The policy bodies are the chart's, verbatim; only the region allow-list is
+pinned to the jurisdiction, so admission enforces exactly what the CLI evidences. CI asserts
+the generated policies reach the same shared fixture-violation count as the chart.
+
+```bash
+regionlock policy --regulation au-data-residency-v1 --engine kyverno | kubectl apply -f -
+regionlock policy --regulation in-data-residency-v1 --engine both > policies.yaml
+```
+
+For richer knobs (Audit mode, excluded namespaces), install the Helm chart with the
+generated values instead: `regionlock policies --regulation X --values`.
 
 ## `explain`
 

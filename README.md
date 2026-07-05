@@ -153,6 +153,13 @@ regionlock policies --regulation au-data-residency-v1 --values > au.yaml
 helm upgrade --install regionlock ./chart/regionlock -f au.yaml
 ```
 
+Or generate ready-to-apply admission policies for any jurisdiction with no Helm (the policy
+bodies are the chart's, verbatim; CI proves the generated policies reach the same enforcement):
+
+```bash
+regionlock policy --regulation au-data-residency-v1 --engine kyverno | kubectl apply -f -
+```
+
 `regionlock explain <control>` prints what a control checks, the articles it evidences, and
 how to fix a violation; the same remediation shows up on every failing check in the report.
 
@@ -224,7 +231,8 @@ Shipped: ✅ Kyverno **and** OPA/Gatekeeper engines (controller-aware) · ✅ ei
 jurisdictions (EU/DE/CH/UK/FR/AU/CA/IN) · ✅ PDF + SARIF export · ✅ evidence diff +
 PR-comment Action · ✅ signed releases (cosign + SBOM) · ✅ live kind e2e · ✅ per-control
 remediation + `explain` · ✅ published JSON Schemas · ✅ Prometheus/Grafana + OSCAL export ·
-✅ time-boxed waivers · ✅ shell completions.
+✅ time-boxed waivers · ✅ shell completions · ✅ `regionlock policy` generator (enforce any
+jurisdiction from one source) · ✅ custom region-label support.
 
 Next:
 

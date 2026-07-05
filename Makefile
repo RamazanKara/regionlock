@@ -3,7 +3,7 @@ PKG     := ./cmd/regionlock
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
-.PHONY: build test vet lint tidy lint-chart gator-test demo evidence snapshot docs docs-serve clean
+.PHONY: build test vet lint tidy lint-chart gator-test demo evidence gen-policies snapshot docs docs-serve clean
 
 build: ## build the CLI
 	go build $(LDFLAGS) -o $(BINARY) $(PKG)
@@ -35,6 +35,18 @@ demo: ## full kind + kyverno + enforce demo
 
 evidence: build ## regenerate the sample evidence report from the violating fixtures
 	./$(BINARY) report --manifests testdata/violating --format console,html,md,json,pdf,sarif,prometheus,oscal --out docs/sample
+
+gen-policies: ## regenerate the embedded `regionlock policy` templates from the chart (requires helm)
+	helm template regionlock chart/regionlock --set engine=kyverno --set-json 'euRegions=["__RL_REGIONS__"]' \
+	  | sed -e 's/                  - __RL_REGIONS__/«regions 18»/' \
+	        -e 's#regionlock.io/ruleset: eu-data-residency-v1#regionlock.io/ruleset: «.RulesetID»#' \
+	        -e 's#app.kubernetes.io/managed-by: Helm#app.kubernetes.io/managed-by: regionlock#' \
+	  > internal/policygen/kyverno.yaml.tmpl
+	helm template regionlock chart/regionlock --set engine=gatekeeper --set-json 'euRegions=["__RL_REGIONS__"]' \
+	  | sed -e 's/      - __RL_REGIONS__/«regions 6»/' \
+	        -e 's#regionlock.io/ruleset: eu-data-residency-v1#regionlock.io/ruleset: «.RulesetID»#' \
+	        -e 's#app.kubernetes.io/managed-by: Helm#app.kubernetes.io/managed-by: regionlock#' \
+	  > internal/policygen/gatekeeper.yaml.tmpl
 
 snapshot: ## build a local release snapshot (requires goreleaser)
 	goreleaser release --snapshot --clean

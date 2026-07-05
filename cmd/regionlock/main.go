@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/RamazanKara/regionlock/internal/model"
+	"github.com/RamazanKara/regionlock/internal/policygen"
 	"github.com/RamazanKara/regionlock/internal/regmap"
 	"github.com/RamazanKara/regionlock/internal/report"
 	"github.com/RamazanKara/regionlock/internal/rules"
@@ -51,6 +52,8 @@ func main() {
 		err = runDiff(os.Args[2:])
 	case "policies":
 		err = runPolicies(os.Args[2:])
+	case "policy":
+		err = runPolicy(os.Args[2:])
 	case "explain":
 		err = runExplain(os.Args[2:])
 	case "keygen":
@@ -80,6 +83,7 @@ Usage:
   regionlock lint     --manifests DIR [--fail-on any|high]
   regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
   regionlock policies [--regulation ID] [--json | --values]
+  regionlock policy   [--regulation ID] [--engine kyverno|gatekeeper|both]
   regionlock explain  [RULE-ID] [--regulation ID]
   regionlock keygen   [--out FILE]
   regionlock completion bash|zsh|fish|powershell
@@ -101,6 +105,7 @@ type fileConfig struct {
 	RequireEgressPolicy *bool    `yaml:"requireEgressPolicy"`
 	CMKAnnotation       string   `yaml:"cmkAnnotation"`
 	EncryptionLabel     string   `yaml:"encryptionLabel"`
+	RegionLabelKeys     []string `yaml:"regionLabelKeys"`
 }
 
 // cfgFlags carries CLI flag overrides (and whether each was explicitly set),
@@ -186,6 +191,36 @@ func buildConfig(path string, rulesetRegions []string, f cfgFlags) (rules.Config
 	return cfg, nil
 }
 
+// applyRegionLabelKeys resolves the region label keys (flag CSV wins over the
+// config file; empty leaves the scanner defaults) and configures the scanner.
+// Label keys are case-sensitive, so they are not lower-cased.
+func applyRegionLabelKeys(configPath, flagCSV string) error {
+	var keys []string
+	if configPath != "" {
+		b, err := os.ReadFile(configPath)
+		if err != nil {
+			return fmt.Errorf("reading config: %w", err)
+		}
+		var fc struct {
+			RegionLabelKeys []string `yaml:"regionLabelKeys"`
+		}
+		if err := yaml.Unmarshal(b, &fc); err != nil {
+			return fmt.Errorf("parsing config regionLabelKeys: %w", err)
+		}
+		keys = fc.RegionLabelKeys
+	}
+	if flagCSV != "" {
+		keys = nil
+		for _, p := range strings.Split(flagCSV, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				keys = append(keys, p)
+			}
+		}
+	}
+	scan.SetRegionKeys(keys)
+	return nil
+}
+
 // parseWaivers reads the `waivers:` list from a regionlock.yaml config.
 func parseWaivers(path string) ([]rules.Waiver, error) {
 	if path == "" {
@@ -255,6 +290,7 @@ func runReport(args []string) error {
 	allowExternalIPs := fs.Bool("allow-external-ips", false, "permit Service spec.externalIPs")
 	requireEgressPolicy := fs.Bool("require-egress-policy", false, "flag workload namespaces with no egress-restricting NetworkPolicy")
 	strict := fs.Bool("strict", false, "exit non-zero if the report is non-compliant")
+	regionLabelKeys := fs.String("region-label-keys", "", "comma list of node label keys read as the cloud region (default: standard topology keys)")
 	fs.Parse(args)
 
 	rs, err := regmap.Load(*regulation)
@@ -263,6 +299,9 @@ func runReport(args []string) error {
 	}
 	cfg, err := buildConfig(*configPath, rs.Regions, flagsFrom(fs, *requireRegion, *allowExternalName, *allowExternalIPs, *requireEgressPolicy, *clusterRegion))
 	if err != nil {
+		return err
+	}
+	if err := applyRegionLabelKeys(*configPath, *regionLabelKeys); err != nil {
 		return err
 	}
 	resources, source, err := gather(*manifests, *kubeconfig, *kctx)
@@ -397,6 +436,7 @@ func runLint(args []string) error {
 	allowExternalName := fs.Bool("allow-external-name", false, "permit Service type=ExternalName")
 	allowExternalIPs := fs.Bool("allow-external-ips", false, "permit Service spec.externalIPs")
 	requireEgressPolicy := fs.Bool("require-egress-policy", false, "flag workload namespaces with no egress-restricting NetworkPolicy")
+	regionLabelKeys := fs.String("region-label-keys", "", "comma list of node label keys read as the cloud region (default: standard topology keys)")
 	fs.Parse(args)
 
 	if *manifests == "" {
@@ -411,6 +451,9 @@ func runLint(args []string) error {
 	}
 	cfg, err := buildConfig(*configPath, rs.Regions, flagsFrom(fs, *requireRegion, *allowExternalName, *allowExternalIPs, *requireEgressPolicy, *clusterRegion))
 	if err != nil {
+		return err
+	}
+	if err := applyRegionLabelKeys(*configPath, *regionLabelKeys); err != nil {
 		return err
 	}
 	resources, _, err := gather(*manifests, "", "")
@@ -572,6 +615,38 @@ func printHelmValues(rs *regmap.Ruleset) error {
 	fmt.Println("euRegions:")
 	for _, r := range rs.Regions {
 		fmt.Printf("  - %s\n", r)
+	}
+	return nil
+}
+
+func runPolicy(args []string) error {
+	fs := flag.NewFlagSet("policy", flag.ExitOnError)
+	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
+	engine := fs.String("engine", "kyverno", "policy engine: kyverno|gatekeeper|both")
+	fs.Parse(args)
+
+	rs, err := regmap.Load(*regulation)
+	if err != nil {
+		return err
+	}
+	var engines []string
+	switch *engine {
+	case "kyverno", "gatekeeper":
+		engines = []string{*engine}
+	case "both":
+		engines = []string{"kyverno", "gatekeeper"}
+	default:
+		return fmt.Errorf("--engine must be kyverno|gatekeeper|both, got %q", *engine)
+	}
+	for _, e := range engines {
+		out, err := policygen.Generate(e, rs.ID, rs.Regions)
+		if err != nil {
+			return err
+		}
+		fmt.Print(out)
+		if !strings.HasSuffix(out, "\n") {
+			fmt.Println()
+		}
 	}
 	return nil
 }
