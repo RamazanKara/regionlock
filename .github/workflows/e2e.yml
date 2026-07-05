@@ -43,8 +43,17 @@ jobs:
         run: |
           set -e
           if [ "${{ matrix.engine }}" = "kyverno" ]; then
-            helm install regionlock ./chart/regionlock -n regionlock --create-namespace \
-              --set engine=kyverno --set enforcementAction=Enforce --wait --timeout 3m
+            # Kyverno's policy webhook can briefly refuse connections right after
+            # install; retry the (idempotent) upgrade until it accepts the policies.
+            for i in $(seq 1 12); do
+              if helm upgrade --install regionlock ./chart/regionlock -n regionlock --create-namespace \
+                   --set engine=kyverno --set enforcementAction=Enforce --wait --timeout 2m; then
+                break
+              fi
+              echo "kyverno webhook not ready, retry $i..."
+              [ "$i" = "12" ] && { echo "::error::regionlock install never succeeded"; exit 1; }
+              sleep 15
+            done
           else
             # Gatekeeper reconciles a ConstraintTemplate into its CRD asynchronously,
             # so apply the rendered chart, wait for the generated CRDs to be
