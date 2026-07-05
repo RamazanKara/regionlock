@@ -13,6 +13,8 @@ Run `regionlock policies --regulation <id>` to print the full mapping.
 | `eu-data-residency-v1` | European Union | `eu-central-1`, `europe-west3`, `westeurope`, … | GDPR, EU Data Act |
 | `de-data-residency-v1` | Germany | `eu-central-1`, `europe-west3`, `europe-west10`, `germanywestcentral`, `germanynorth` | GDPR + BDSG |
 | `ch-fadp-v1` | Switzerland | `eu-central-2`, `europe-west6`, `switzerlandnorth`, `switzerlandwest` | revFADP / nDSG |
+| `uk-data-residency-v1` | United Kingdom | `eu-west-2`, `europe-west2`, `uksouth`, `ukwest` | UK GDPR + DPA 2018 |
+| `fr-data-residency-v1` | France | `eu-west-3`, `europe-west9`, `francecentral`, `francesouth` | GDPR + Loi Informatique et Libertés |
 
 ## Control → provision mapping
 

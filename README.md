@@ -7,10 +7,10 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/RamazanKara/regionlock.svg)](https://pkg.go.dev/github.com/RamazanKara/regionlock)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-Regionlock enforces EU (or Germany-, or Switzerland-) data-residency on any Kubernetes
-cluster (pin workloads to in-territory regions, require customer-managed keys, block
-unrestricted egress) **and** emits a signed, article-mapped **evidence report** — HTML,
-PDF, JSON, or SARIF — a DPO or auditor can actually use.
+Regionlock enforces data-residency (EU, Germany, Switzerland, UK, or France) on any
+Kubernetes cluster (pin workloads to in-territory regions, require customer-managed keys,
+block unrestricted egress) **and** emits a signed, article-mapped **evidence report** —
+HTML, PDF, JSON, or SARIF — a DPO or auditor can actually use.
 
 It treats the regulation as *versioned policy code you subscribe to* — not a static
 checklist that rots. Enforcement runs on **Kyverno or OPA/Gatekeeper**, whichever your
@@ -135,6 +135,8 @@ Select one with `--regulation <id>` (CLI) or the matching region allow-list (cha
 | `eu-data-residency-v1` (default) | European Union | GDPR, EU Data Act |
 | `de-data-residency-v1` | Germany | GDPR + BDSG |
 | `ch-fadp-v1` | Switzerland | revFADP / nDSG |
+| `uk-data-residency-v1` | United Kingdom | UK GDPR + DPA 2018 |
+| `fr-data-residency-v1` | France | GDPR + Loi Informatique et Libertés |
 
 Each ships its own in-territory region list. Adding another jurisdiction is one JSON file —
 see [docs/regulations.md](docs/regulations.md).
@@ -146,7 +148,7 @@ Gate every PR and surface violations in the Security tab:
 ```yaml
 - uses: actions/checkout@v4
 - id: regionlock
-  uses: RamazanKara/regionlock@v0.2.0
+  uses: RamazanKara/regionlock@v1.0.0
   with:
     manifests: ./k8s
     regulation: eu-data-residency-v1
@@ -190,16 +192,26 @@ hand it to a DPO without over-claiming.
 
 - [Installation](docs/installation.md) · [Configuration](docs/configuration.md) ·
   [Regulations](docs/regulations.md) · [CI integration](docs/ci-integration.md) ·
-  [Architecture](docs/architecture.md) · [Releasing](RELEASING.md)
+  [Architecture](docs/architecture.md) · [Stability](docs/stability.md) ·
+  [Releasing](RELEASING.md)
+
+## Stability
+
+Regionlock follows [semantic versioning](https://semver.org). As of **1.0**, the CLI
+commands/flags, the report JSON schema, the ruleset JSON schema, the rule IDs, and the
+chart values are a stable public API — see [docs/stability.md](docs/stability.md). Both
+policy engines and the CLI are validated together in CI (offline via `kyverno apply` +
+`gator test`, and live in a kind cluster via the [e2e workflow](.github/workflows/e2e.yml)).
 
 ## Roadmap
 
-Shipped in 0.2: ✅ OPA/Gatekeeper engine · ✅ PDF + SARIF export · ✅ evidence diff +
-PR-comment Action · ✅ multi-jurisdiction (EU/DE/CH) · ✅ signed releases (cosign + SBOM).
+Shipped: ✅ Kyverno **and** OPA/Gatekeeper engines (controller-aware) · ✅ five
+jurisdictions (EU/DE/CH/UK/FR) · ✅ PDF + SARIF export · ✅ evidence diff + PR-comment
+Action · ✅ signed releases (cosign + SBOM) · ✅ live kind e2e.
 
 Next:
 
-- More jurisdictions as community PRs (`uk-data-protection`, `us-hipaa`, `fr`, `eu-health-data-space`)
+- More jurisdictions as community PRs (`us-hipaa`, `eu-health-data-space`, `ca`, `au`)
 - Live-cluster continuous evidence (scheduled report → object storage)
 - CNCF Sandbox submission
 

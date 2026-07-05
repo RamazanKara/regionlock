@@ -164,6 +164,30 @@ spec:
 	}
 }
 
+func TestPreferredAffinityIsNotAHardPin(t *testing.T) {
+	// preferredDuringScheduling is a soft hint; it must NOT be read as a
+	// guaranteed EU pin (the pod can still schedule anywhere).
+	y := `
+apiVersion: v1
+kind: Pod
+metadata: { name: pref, namespace: shop }
+spec:
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [eu-central-1] }
+  containers: [{ name: c, image: nginx }]
+`
+	rs, _ := ParseBytes([]byte(y), "t.yaml")
+	pt := rs[0].PodTemplate
+	if pt == nil || pt.HasRegionConstraint || len(pt.RegionValues) != 0 {
+		t.Fatalf("preferred affinity must not count as a hard region pin: %+v", pt)
+	}
+}
+
 func TestNetworkPolicyEmptyToIsUnrestricted(t *testing.T) {
 	y := `
 apiVersion: networking.k8s.io/v1

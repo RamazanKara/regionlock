@@ -29,8 +29,8 @@ import (
 	"crypto/rand"
 )
 
-// Version is overridable at build time: -ldflags "-X main.Version=v0.2.0".
-var Version = "0.2.0-dev"
+// Version is overridable at build time: -ldflags "-X main.Version=v1.0.0".
+var Version = "1.0.0-dev"
 
 const toolName = "regionlock"
 
@@ -169,6 +169,7 @@ func runReport(args []string) error {
 	signKey := fs.String("sign-key", "", "path to an ed25519 seed (hex) to sign the report")
 	requireRegion := fs.Bool("require-region", true, "fail workloads with no region constraint")
 	allowExternalName := fs.Bool("allow-external-name", false, "permit Service type=ExternalName")
+	strict := fs.Bool("strict", false, "exit non-zero if the report is non-compliant")
 	fs.Parse(args)
 
 	rs, err := regmap.Load(*regulation)
@@ -196,7 +197,13 @@ func runReport(args []string) error {
 			return err
 		}
 	}
-	return emit(rep, *format, *out)
+	if err := emit(rep, *format, *out); err != nil {
+		return err
+	}
+	if *strict && !rep.Summary.Compliant {
+		os.Exit(1)
+	}
+	return nil
 }
 
 func emit(rep report.Report, format, out string) error {

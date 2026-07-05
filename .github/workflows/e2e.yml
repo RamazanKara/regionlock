@@ -1,0 +1,76 @@
+name: e2e
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+# Live end-to-end: install the chart into a real kind cluster with a real
+# admission webhook and prove a non-EU pod is actually blocked at admission
+# (and a compliant pod is admitted). Complements the offline policy tests.
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [kyverno, gatekeeper]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: regionlock-e2e
+
+      - name: label node as an EU region
+        run: kubectl label node regionlock-e2e-control-plane topology.kubernetes.io/region=eu-central-1 --overwrite
+
+      - name: install policy engine (${{ matrix.engine }})
+        run: |
+          set -e
+          if [ "${{ matrix.engine }}" = "kyverno" ]; then
+            helm repo add kyverno https://kyverno.github.io/kyverno/
+            helm repo update
+            helm install kyverno kyverno/kyverno -n kyverno --create-namespace --wait --timeout 5m
+          else
+            helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
+            helm repo update
+            helm install gatekeeper gatekeeper/gatekeeper -n gatekeeper-system --create-namespace --wait --timeout 5m
+          fi
+
+      - name: install Regionlock (Enforce)
+        run: |
+          helm install regionlock ./chart/regionlock -n regionlock --create-namespace \
+            --set engine=${{ matrix.engine }} --set enforcementAction=Enforce --wait --timeout 3m
+          kubectl create namespace shop
+
+      - name: wait for the admission webhook / constraints to be active
+        run: |
+          # Retry a known-bad pod until admission actually rejects it (webhook + policy sync can lag).
+          for i in $(seq 1 30); do
+            if ! kubectl apply -n shop -f demo/manifests/violating-pod.yaml >/tmp/deny.txt 2>&1; then
+              echo "enforcement active after ${i} attempt(s)"; cat /tmp/deny.txt; break
+            fi
+            kubectl delete -n shop pod checkout-us --ignore-not-found >/dev/null 2>&1
+            if [ "$i" = "30" ]; then echo "::error::enforcement never became active"; cat /tmp/deny.txt; exit 1; fi
+            sleep 5
+          done
+
+      - name: a NON-EU pod must be BLOCKED
+        run: |
+          kubectl delete -n shop pod checkout-us --ignore-not-found >/dev/null 2>&1
+          if kubectl apply -n shop -f demo/manifests/violating-pod.yaml 2>/tmp/deny.txt; then
+            echo "::error::non-EU pod was admitted"; exit 1
+          fi
+          grep -qi "BLOCKED" /tmp/deny.txt && echo "correctly blocked:" && cat /tmp/deny.txt
+
+      - name: a COMPLIANT EU pod must be ADMITTED
+        run: |
+          kubectl apply -n shop -f demo/manifests/compliant-pod.yaml
+          kubectl get -n shop pod checkout-eu
+
+      - name: regionlock report scans the live cluster
+        run: |
+          go build -o regionlock ./cmd/regionlock
+          ./regionlock report --format console

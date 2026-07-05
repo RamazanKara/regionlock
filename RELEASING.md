@@ -10,8 +10,8 @@ workflow does the rest via [GoReleaser](https://goreleaser.com).
 2. Ensure `chart/regionlock/Chart.yaml` `version`/`appVersion` match the release.
 3. Tag and push:
    ```bash
-   git tag -s v0.2.0 -m "v0.2.0"
-   git push origin v0.2.0
+   git tag -s v1.0.0 -m "v1.0.0"
+   git push origin v1.0.0
    ```
 
 ## What the release produces

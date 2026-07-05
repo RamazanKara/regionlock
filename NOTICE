@@ -1,0 +1,18 @@
+Regionlock
+Copyright 2026 Ramazan Kara
+
+This product is licensed under the Apache License, Version 2.0 (the "License");
+you may not use this product except in compliance with the License. A copy of
+the License is included in the LICENSE file and is available at
+http://www.apache.org/licenses/LICENSE-2.0.
+
+This product bundles the following third-party Go modules, each under its own
+license:
+
+  - gopkg.in/yaml.v3 (Apache-2.0 / MIT) — YAML parsing
+  - github.com/go-pdf/fpdf (MIT) — PDF evidence rendering
+
+Regionlock evidences technical and organizational data-residency controls
+enforced on a Kubernetes cluster. It is not a cryptographic attestation that
+data never physically left a region, and nothing in this product constitutes
+legal advice.

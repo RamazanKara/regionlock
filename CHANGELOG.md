@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-05
+
+First stable release. The CLI, report/ruleset JSON schemas, rule IDs, and chart values are
+now a versioned public API — see [docs/stability.md](docs/stability.md).
+
+### Added
+- **Controller-level enforcement parity**: both engines now block non-EU pods created by
+  Deployments/StatefulSets/DaemonSets/ReplicaSets/Jobs/CronJobs, not just bare Pods
+  (Kyverno via autogen; Gatekeeper via a kind-dispatched pod spec). Validated by CI.
+- **Two more jurisdictions**: `uk-data-residency-v1` (UK GDPR + DPA 2018) and
+  `fr-data-residency-v1` (GDPR + Loi Informatique et Libertés) — five in total.
+- **`report --strict`**: exit non-zero when the report is non-compliant (report-as-a-gate).
+- **Live e2e CI**: a kind-based workflow installs the chart with a real admission webhook
+  for each engine and proves a non-EU pod is blocked and a compliant pod admitted.
+- Ruleset invariant test (every bundled ruleset well-formed and mapping exactly the engine
+  rule IDs); `NOTICE`; `docs/stability.md`.
+
+### Fixed
+- `preferredDuringScheduling` nodeAffinity (a soft hint) is not treated as a hard EU pin.
+
 ## [0.2.0] — 2026-07-05
 
 ### Added

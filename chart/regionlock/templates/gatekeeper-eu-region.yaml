@@ -27,9 +27,24 @@ spec:
       rego: |
         package regionlockeuregion
 
+        # The pod spec, resolved per workload kind so controllers (Deployment,
+        # StatefulSet, DaemonSet, ReplicaSet, Job, CronJob) are covered too — not
+        # just bare Pods. Mutually exclusive guards, so no conflicting values.
+        pod_spec := input.review.object.spec {
+          input.review.kind.kind == "Pod"
+        }
+        pod_spec := input.review.object.spec.template.spec {
+          controller_kinds[input.review.kind.kind]
+        }
+        pod_spec := input.review.object.spec.jobTemplate.spec.template.spec {
+          input.review.kind.kind == "CronJob"
+        }
+
+        controller_kinds := {"Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job"}
+
         # nodeSelector region pin outside the EU.
         violation[{"msg": msg}] {
-          region := input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
+          region := pod_spec.nodeSelector["topology.kubernetes.io/region"]
           not region_allowed(region)
           msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeSelector) violates EU data-residency policy [GDPR Art. 44]", [region])
         }
@@ -50,11 +65,11 @@ spec:
         }
 
         has_nodeselector_region {
-          input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
+          pod_spec.nodeSelector["topology.kubernetes.io/region"]
         }
 
         affinity_region_values[v] {
-          term := input.review.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[_]
+          term := pod_spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[_]
           expr := term.matchExpressions[_]
           expr.key == "topology.kubernetes.io/region"
           expr.operator == "In"
@@ -76,6 +91,10 @@ spec:
     kinds:
       - apiGroups: [""]
         kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet", "ReplicaSet"]
+      - apiGroups: ["batch"]
+        kinds: ["Job", "CronJob"]
     {{- with .Values.excludeNamespaces }}
     excludedNamespaces:
     {{- toYaml . | nindent 6 }}

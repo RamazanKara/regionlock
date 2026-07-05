@@ -20,11 +20,19 @@ var deDataResidencyV1 []byte
 //go:embed data/ch-fadp-v1.json
 var chFADPV1 []byte
 
+//go:embed data/uk-data-residency-v1.json
+var ukDataResidencyV1 []byte
+
+//go:embed data/fr-data-residency-v1.json
+var frDataResidencyV1 []byte
+
 // rulesets is the registry of bundled rulesets, keyed by id.
 var rulesets = map[string][]byte{
 	"eu-data-residency-v1": euDataResidencyV1,
 	"de-data-residency-v1": deDataResidencyV1,
 	"ch-fadp-v1":           chFADPV1,
+	"uk-data-residency-v1": ukDataResidencyV1,
+	"fr-data-residency-v1": frDataResidencyV1,
 }
 
 // DefaultRuleset is the ruleset used when none is specified.

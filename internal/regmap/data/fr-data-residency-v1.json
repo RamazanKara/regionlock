@@ -1,0 +1,58 @@
+{
+  "id": "fr-data-residency-v1",
+  "version": "1.0.0",
+  "title": "France Data Residency Baseline (GDPR + Loi Informatique et Libertés)",
+  "jurisdiction": "France",
+  "updated": "2026-07-05",
+  "notes": "Constrains placement to French cloud regions and evidences the GDPR and the French Loi Informatique et Libertés (Law No. 78-17) enforced by the CNIL. Suited to public-sector and health workloads that must remain in-country. Evidence of technical/organizational controls, not a cryptographic data-path proof.",
+  "regions": [
+    "eu-west-3",
+    "europe-west9",
+    "francecentral",
+    "francesouth"
+  ],
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to a French region",
+      "description": "Every workload declares node placement constrained to an allow-listed French cloud region (Paris/Marseille) via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "French public-sector and health data (HDS-hosted) frequently require in-country residency; placement outside France can constitute a third-country transfer.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 44", "title": "General principle for transfers", "url": "https://gdpr-info.eu/art-44-gdpr/" },
+        { "regulation": "Loi 78-17", "article": "Art. 5", "title": "Territorial scope (Informatique et Libertés)", "url": "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000000886460/" }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or extra-territorial egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress.",
+      "severity": "high",
+      "rationale": "Open egress can move personal data outside France without a transfer safeguard.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 44", "title": "General principle for transfers", "url": "https://gdpr-info.eu/art-44-gdpr/" },
+        { "regulation": "GDPR", "article": "Art. 46", "title": "Transfers subject to appropriate safeguards", "url": "https://gdpr-info.eu/art-46-gdpr/" }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the controller controls the keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys are an appropriate technical measure to ensure data security.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 32", "title": "Security of processing", "url": "https://gdpr-info.eu/art-32-gdpr/" }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is a baseline technical measure under the security-of-processing obligation.",
+      "articles": [
+        { "regulation": "GDPR", "article": "Art. 32", "title": "Security of processing", "url": "https://gdpr-info.eu/art-32-gdpr/" }
+      ]
+    }
+  ]
+}

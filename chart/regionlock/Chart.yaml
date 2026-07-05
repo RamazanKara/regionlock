@@ -1,9 +1,9 @@
 apiVersion: v2
 name: regionlock
-description: Enforce EU data-residency on Kubernetes with tested, regulation-mapped Kyverno policies.
+description: Enforce data-residency on Kubernetes with tested, regulation-mapped Kyverno or OPA/Gatekeeper policies.
 type: application
-version: 0.2.0
-appVersion: "0.2.0"
+version: 1.0.0
+appVersion: "1.0.0"
 kubeVersion: ">=1.25.0-0"
 keywords:
   - sovereignty

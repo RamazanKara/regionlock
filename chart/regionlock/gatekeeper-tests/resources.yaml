@@ -52,6 +52,61 @@ spec:
   policyTypes: [Egress]
   egress: [{}]
 ---
+# Controller-level coverage: a non-EU Deployment (nodeSelector) must be blocked.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dep-us, namespace: shop }
+spec:
+  selector: { matchLabels: { app: dep-us } }
+  template:
+    metadata: { labels: { app: dep-us } }
+    spec:
+      nodeSelector: { topology.kubernetes.io/region: us-east-1 }
+      containers: [{ name: c, image: nginx }]
+---
+# A non-EU Deployment pinned via nodeAffinity must be blocked.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dep-aff-us, namespace: shop }
+spec:
+  selector: { matchLabels: { app: dep-aff-us } }
+  template:
+    metadata: { labels: { app: dep-aff-us } }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - { key: topology.kubernetes.io/region, operator: In, values: [us-west-2] }
+      containers: [{ name: c, image: nginx }]
+---
+# A compliant EU Deployment must be admitted.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dep-eu, namespace: shop }
+spec:
+  selector: { matchLabels: { app: dep-eu } }
+  template:
+    metadata: { labels: { app: dep-eu } }
+    spec:
+      nodeSelector: { topology.kubernetes.io/region: eu-central-1 }
+      containers: [{ name: c, image: nginx }]
+---
+# The deepest pod-spec path: a non-EU CronJob must be blocked.
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: cj-us, namespace: shop }
+spec:
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          nodeSelector: { topology.kubernetes.io/region: us-east-1 }
+          restartPolicy: Never
+          containers: [{ name: c, image: nginx }]
+---
 apiVersion: v1
 kind: Pod
 metadata: { name: pod-none, namespace: shop }
