@@ -170,7 +170,7 @@ Gate every PR and surface violations in the Security tab:
 ```yaml
 - uses: actions/checkout@v4
 - id: regionlock
-  uses: RamazanKara/regionlock@v1.0.0
+  uses: RamazanKara/regionlock@v1.1.0
   with:
     manifests: ./k8s
     regulation: eu-data-residency-v1

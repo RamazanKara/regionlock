@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-05
+
 ### Added
 - **Three more jurisdictions**: `au-data-residency-v1` (Australia, Privacy Act 1988 APP 8 /
   s 16C), `ca-data-residency-v1` (Canada, PIPEDA + BC FOIPPA + Quebec Law 25), and
