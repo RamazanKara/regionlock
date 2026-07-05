@@ -38,4 +38,4 @@ evidence reports remain reproducible. Pin the ruleset version you audited agains
   kind, covering Pods and the standard controllers directly).
 
 Both engines are validated to produce equivalent decisions — offline in CI (`kyverno apply`
-+ `gator test`) and live in a kind cluster ([e2e workflow](../.github/workflows/e2e.yml)).
++ `gator test`) and live in a kind cluster ([e2e workflow](https://github.com/RamazanKara/regionlock/blob/master/.github/workflows/e2e.yml)).

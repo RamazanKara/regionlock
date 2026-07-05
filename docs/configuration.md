@@ -18,7 +18,7 @@ the selected ruleset's defaults.
 | `--strict` (report) | `false` | Exit non-zero when the report is non-compliant |
 
 Precedence for the region allow-list: **flags** > `--config` > the ruleset's
-`regions` > built-in EU default. See [`regionlock.example.yaml`](../regionlock.example.yaml).
+`regions` > built-in EU default. See [`regionlock.example.yaml`](https://github.com/RamazanKara/regionlock/blob/master/regionlock.example.yaml).
 
 ## Chart values (`chart/regionlock/values.yaml`)
 

@@ -20,13 +20,13 @@ audit. Three integration styles:
 ```
 
 Failing controls appear inline in the **Security → Code scanning** tab via SARIF.
-Full example: [`examples/github/residency.yml`](../examples/github/residency.yml).
+Full example: [`examples/github/residency.yml`](https://github.com/RamazanKara/regionlock/blob/master/examples/github/residency.yml).
 
 ## 2. PR comment with the residency delta
 
 Post *what this PR newly violates or resolves* versus the base branch using
 `regionlock diff`. Full example:
-[`examples/github/pr-comment.yml`](../examples/github/pr-comment.yml).
+[`examples/github/pr-comment.yml`](https://github.com/RamazanKara/regionlock/blob/master/examples/github/pr-comment.yml).
 
 ```bash
 regionlock report --manifests ./k8s --format json --out base/   # on base ref

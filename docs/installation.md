@@ -21,7 +21,7 @@ curl -fsSL https://github.com/RamazanKara/regionlock/releases/latest/download/re
 ```
 
 Release archives ship with a cosign-signed `checksums.txt` — see
-[RELEASING.md](../RELEASING.md) for verification.
+[RELEASING.md](https://github.com/RamazanKara/regionlock/blob/master/RELEASING.md) for verification.
 
 ## Policy pack (Helm chart)
 

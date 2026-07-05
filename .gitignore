@@ -10,6 +10,10 @@
 *.key
 signing.key
 
+# mkdocs docs site build output
+/site/
+.cache/
+
 # editor / OS cruft
 .DS_Store
 *.swp

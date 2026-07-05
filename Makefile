@@ -3,7 +3,7 @@ PKG     := ./cmd/regionlock
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
-.PHONY: build test vet lint tidy lint-chart gator-test demo evidence snapshot clean
+.PHONY: build test vet lint tidy lint-chart gator-test demo evidence snapshot docs docs-serve clean
 
 build: ## build the CLI
 	go build $(LDFLAGS) -o $(BINARY) $(PKG)
@@ -39,6 +39,12 @@ evidence: build ## regenerate the sample evidence report from the violating fixt
 snapshot: ## build a local release snapshot (requires goreleaser)
 	goreleaser release --snapshot --clean
 
+docs: ## build the documentation site (requires mkdocs-material)
+	mkdocs build --strict
+
+docs-serve: ## live-preview the docs site at http://127.0.0.1:8000
+	mkdocs serve
+
 clean:
 	rm -f $(BINARY) $(BINARY).exe
-	rm -rf evidence dist
+	rm -rf evidence dist site

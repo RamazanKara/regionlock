@@ -1,0 +1,82 @@
+site_name: Regionlock
+site_description: Enforce & evidence data-residency on Kubernetes — Kyverno or OPA/Gatekeeper, with a signed, article-mapped evidence report.
+site_url: https://ramazankara.github.io/regionlock/
+repo_url: https://github.com/RamazanKara/regionlock
+repo_name: RamazanKara/regionlock
+edit_uri: edit/master/docs/
+copyright: Copyright &copy; 2026 Ramazan Kara — Apache-2.0
+
+theme:
+  name: material
+  icon:
+    logo: material/lock-check
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: installation.md
+      - Configuration: configuration.md
+      - CLI reference: cli.md
+  - Enforce & evidence:
+      - Regulations & jurisdictions: regulations.md
+      - CI integration: ci-integration.md
+      - Architecture: architecture.md
+  - Trust:
+      - Limitations & threat model: limitations.md
+      - Stability & compatibility: stability.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+# The generated sample evidence artifacts live under docs/sample for GitHub
+# viewing; they are not documentation pages, so keep them out of the built site.
+exclude_docs: |
+  sample/
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/RamazanKara/regionlock

@@ -6,6 +6,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/RamazanKara/regionlock)](https://goreportcard.com/report/github.com/RamazanKara/regionlock)
 [![Go Reference](https://pkg.go.dev/badge/github.com/RamazanKara/regionlock.svg)](https://pkg.go.dev/github.com/RamazanKara/regionlock)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-ramazankara.github.io%2Fregionlock-blue)](https://ramazankara.github.io/regionlock/)
+
+📖 **[Documentation site →](https://ramazankara.github.io/regionlock/)**
 
 Regionlock enforces data-residency (EU, Germany, Switzerland, UK, or France) on any
 Kubernetes cluster (pin workloads to in-territory regions, require customer-managed keys,

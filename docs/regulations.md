@@ -35,7 +35,7 @@ evidence reports remain reproducible. Pin the version you audited against.
 
 Rulesets live in `internal/regmap/data/<id>.json`. A new jurisdiction is a JSON
 file (regions + rule→article mappings) plus registration in
-`internal/regmap/regmap.go`. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+`internal/regmap/regmap.go`. See [CONTRIBUTING.md](https://github.com/RamazanKara/regionlock/blob/master/CONTRIBUTING.md).
 
 ## Scope
 
