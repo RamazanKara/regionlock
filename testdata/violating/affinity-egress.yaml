@@ -1,0 +1,49 @@
+# Additional violations exercised by the v0.2 detections: a non-EU region pinned
+# via nodeAffinity (not nodeSelector), a Service exposing externalIPs, and a
+# NetworkPolicy egress rule with no peer selector (allow-all).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommender
+  namespace: shop
+spec:
+  selector:
+    matchLabels: { app: recommender }
+  template:
+    metadata:
+      labels: { app: recommender }
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values: [us-west-2]
+      containers:
+        - name: app
+          image: ghcr.io/example/recommender:2.1.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-billing
+  namespace: shop
+spec:
+  type: ClusterIP
+  externalIPs: [198.51.100.7]
+  selector: { app: billing }
+  ports:
+    - port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: unrestricted-egress
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - {}

@@ -27,16 +27,38 @@ spec:
       rego: |
         package regionlockeuregion
 
+        # nodeSelector region pin outside the EU.
         violation[{"msg": msg}] {
           region := input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
           not region_allowed(region)
-          msg := sprintf("BLOCKED: non-EU region \"%v\" violates EU data-residency policy [GDPR Art. 44]", [region])
+          msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeSelector) violates EU data-residency policy [GDPR Art. 44]", [region])
         }
 
+        # required nodeAffinity In-term pinning region outside the EU.
+        violation[{"msg": msg}] {
+          region := affinity_region_values[_]
+          not region_allowed(region)
+          msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeAffinity) violates EU data-residency policy [GDPR Art. 44]", [region])
+        }
+
+        # no positive region pin at all (neither nodeSelector nor an In-affinity term).
         violation[{"msg": msg}] {
           input.parameters.requireRegion
-          not input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
+          not has_nodeselector_region
+          count(affinity_region_values) == 0
           msg := "BLOCKED: no EU region declared via topology.kubernetes.io/region [GDPR Art. 44]"
+        }
+
+        has_nodeselector_region {
+          input.review.object.spec.nodeSelector["topology.kubernetes.io/region"]
+        }
+
+        affinity_region_values[v] {
+          term := input.review.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[_]
+          expr := term.matchExpressions[_]
+          expr.key == "topology.kubernetes.io/region"
+          expr.operator == "In"
+          v := expr.values[_]
         }
 
         region_allowed(region) {

@@ -80,4 +80,23 @@ jobs:
           helm template rl chart/regionlock --set engine=gatekeeper > /tmp/gk.yaml
           n=$(gator test -f /tmp/gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
           echo "gator reported $n violations"
-          test "$n" -eq 6 || { echo "expected 6 violations, got $n"; exit 1; }
+          test "$n" -eq 9 || { echo "expected 9 violations, got $n"; exit 1; }
+
+  kyverno:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: install kyverno CLI
+        run: |
+          curl -fsSL -o /tmp/ky.tar.gz https://github.com/kyverno/kyverno/releases/download/v1.18.1/kyverno-cli_v1.18.1_linux_x86_64.tar.gz
+          tar -xzf /tmp/ky.tar.gz -C /tmp kyverno
+          sudo mv /tmp/kyverno /usr/local/bin/kyverno
+      - name: render Kyverno policies and test them offline
+        run: |
+          helm template rl chart/regionlock > /tmp/ky.yaml
+          # kyverno apply reuses the same test resources; assert the same 9 violations as Gatekeeper.
+          out=$(kyverno apply /tmp/ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml)
+          echo "$out" | tail -3
+          echo "$out" | grep -qE "fail: 9" || { echo "expected fail: 9"; exit 1; }
+          echo "$out" | grep -E "pod-eu|pvc-good|pod-aff-eu" && { echo "a compliant resource was flagged"; exit 1; } || echo "compliant resources clean"

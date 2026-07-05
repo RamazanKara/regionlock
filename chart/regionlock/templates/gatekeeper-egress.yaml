@@ -31,14 +31,29 @@ spec:
         }
 
         violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          count(object.get(input.review.object.spec, "externalIPs", [])) > 0
+          not input.parameters.allowExternalName
+          msg := sprintf("BLOCKED: Service exposes externalIPs %v (destination not verifiable as EU) [GDPR Art. 44]", [input.review.object.spec.externalIPs])
+        }
+
+        # an egress rule with no peer selector (empty/absent `to`) permits egress anywhere.
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "NetworkPolicy"
+          rule := input.review.object.spec.egress[_]
+          count(object.get(rule, "to", [])) == 0
+          msg := "BLOCKED: NetworkPolicy egress rule with no peer selector permits egress to any destination [GDPR Art. 46]"
+        }
+
+        violation[{"msg": msg}] {
           input.review.kind.kind == "NetworkPolicy"
           cidr := input.review.object.spec.egress[_].to[_].ipBlock.cidr
           unrestricted(cidr)
           msg := sprintf("BLOCKED: NetworkPolicy permits unrestricted egress %v (can reach non-EU destinations) [GDPR Art. 46]", [cidr])
         }
 
-        unrestricted(cidr) { cidr == "0.0.0.0/0" }
-        unrestricted(cidr) { cidr == "::/0" }
+        # any /0 prefix (0.0.0.0/0, ::/0, or a non-canonical spelling) is a default route.
+        unrestricted(cidr) { endswith(cidr, "/0") }
 ---
 apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: RegionlockNoEgress

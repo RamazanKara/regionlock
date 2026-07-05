@@ -1,7 +1,7 @@
 {
   "tool": "regionlock",
-  "version": "v0.2.0",
-  "generatedAt": "2026-07-05T01:09:53Z",
+  "version": "0.2.0",
+  "generatedAt": "2026-07-05T01:35:26Z",
   "source": "testdata/violating",
   "ruleset": {
     "id": "eu-data-residency-v1",
@@ -11,10 +11,10 @@
     "updated": "2026-07-05"
   },
   "summary": {
-    "resources": 5,
-    "checks": 6,
+    "resources": 8,
+    "checks": 9,
     "pass": 0,
-    "fail": 6,
+    "fail": 9,
     "skip": 0,
     "score": 0,
     "compliant": false
@@ -57,7 +57,7 @@
       "ruleName": "Workloads pinned to an EU region",
       "severity": "high",
       "pass": 0,
-      "fail": 2,
+      "fail": 3,
       "skip": 0,
       "articles": [
         {
@@ -85,7 +85,7 @@
       "ruleName": "No unrestricted or extra-EU egress",
       "severity": "high",
       "pass": 0,
-      "fail": 2,
+      "fail": 4,
       "skip": 0,
       "articles": [
         {
@@ -107,7 +107,7 @@
     {
       "namespace": "shop",
       "pass": 0,
-      "fail": 6,
+      "fail": 9,
       "skip": 0,
       "score": 0
     }
@@ -187,10 +187,41 @@
       "ruleName": "Workloads pinned to an EU region",
       "severity": "high",
       "status": "fail",
+      "kind": "Deployment",
+      "name": "recommender",
+      "namespace": "shop",
+      "message": "pinned to non-EU region(s): us-west-2",
+      "source": "testdata\\violating\\affinity-egress.yaml#0",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 45",
+          "title": "Transfers on the basis of an adequacy decision",
+          "url": "https://gdpr-info.eu/art-45-gdpr/"
+        },
+        {
+          "regulation": "EU Data Act",
+          "article": "Art. 32",
+          "title": "International governmental access and transfer of non-personal data",
+          "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
+        }
+      ]
+    },
+    {
+      "ruleId": "eu-region-placement",
+      "ruleName": "Workloads pinned to an EU region",
+      "severity": "high",
+      "status": "fail",
       "kind": "StatefulSet",
       "name": "sessions",
       "namespace": "shop",
-      "message": "no EU region constraint declared (set topology.kubernetes.io/region via nodeSelector or nodeAffinity)",
+      "message": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term)",
       "source": "testdata\\violating\\workloads.yaml#1",
       "articles": [
         {
@@ -262,10 +293,60 @@
           "url": "https://gdpr-info.eu/art-46-gdpr/"
         }
       ]
+    },
+    {
+      "ruleId": "no-non-eu-egress",
+      "ruleName": "No unrestricted or extra-EU egress",
+      "severity": "high",
+      "status": "fail",
+      "kind": "Service",
+      "name": "legacy-billing",
+      "namespace": "shop",
+      "message": "Service exposes externalIPs 198.51.100.7 (destination not verifiable as EU)",
+      "source": "testdata\\violating\\affinity-egress.yaml#1",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 46",
+          "title": "Transfers subject to appropriate safeguards",
+          "url": "https://gdpr-info.eu/art-46-gdpr/"
+        }
+      ]
+    },
+    {
+      "ruleId": "no-non-eu-egress",
+      "ruleName": "No unrestricted or extra-EU egress",
+      "severity": "high",
+      "status": "fail",
+      "kind": "NetworkPolicy",
+      "name": "unrestricted-egress",
+      "namespace": "shop",
+      "message": "permits egress to any destination (egress rule with no peer selector)",
+      "source": "testdata\\violating\\affinity-egress.yaml#2",
+      "articles": [
+        {
+          "regulation": "GDPR",
+          "article": "Art. 44",
+          "title": "General principle for transfers",
+          "url": "https://gdpr-info.eu/art-44-gdpr/"
+        },
+        {
+          "regulation": "GDPR",
+          "article": "Art. 46",
+          "title": "Transfers subject to appropriate safeguards",
+          "url": "https://gdpr-info.eu/art-46-gdpr/"
+        }
+      ]
     }
   ],
   "integrity": {
     "algorithm": "sha256",
-    "digest": "51c372e41cae06cfca0a913a2dd045dbda20894969dc383a5615be432e1e4315"
+    "digest": "b7e4a80924163a1c32e5b0b13918159afcc1941b4e298908e71c029847d77589"
   }
 }

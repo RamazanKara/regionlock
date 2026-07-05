@@ -7,7 +7,7 @@
         "driver": {
           "name": "regionlock",
           "informationUri": "https://github.com/RamazanKara/regionlock",
-          "version": "v0.2.0",
+          "version": "0.2.0",
           "rules": [
             {
               "id": "customer-managed-key",
@@ -129,7 +129,23 @@
           "ruleId": "eu-region-placement",
           "level": "error",
           "message": {
-            "text": "no EU region constraint declared (set topology.kubernetes.io/region via nodeSelector or nodeAffinity) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+            "text": "pinned to non-EU region(s): us-west-2 [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\affinity-egress.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "eu-region-placement",
+          "level": "error",
+          "message": {
+            "text": "no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term) [GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32]"
           },
           "locations": [
             {
@@ -168,6 +184,38 @@
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "testdata\\violating\\workloads.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "no-non-eu-egress",
+          "level": "error",
+          "message": {
+            "text": "Service exposes externalIPs 198.51.100.7 (destination not verifiable as EU) [GDPR Art. 44, GDPR Art. 46]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\affinity-egress.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "no-non-eu-egress",
+          "level": "error",
+          "message": {
+            "text": "permits egress to any destination (egress rule with no peer selector) [GDPR Art. 44, GDPR Art. 46]"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "testdata\\violating\\affinity-egress.yaml"
                 }
               }
             }

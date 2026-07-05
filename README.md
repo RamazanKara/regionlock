@@ -205,8 +205,10 @@ Next:
 
 ## Contributing
 
-New jurisdictions are the highest-value contribution: add a ruleset JSON under `regulations/`
-and the matching policies under `chart/`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+New jurisdictions are the highest-value contribution: add a ruleset JSON under
+`internal/regmap/data/<id>.json`, register it in the `rulesets` map in
+`internal/regmap/regmap.go`, and add the matching policies under `chart/`. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

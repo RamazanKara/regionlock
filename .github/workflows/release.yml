@@ -69,6 +69,8 @@ jobs:
       - name: package and push chart to ghcr (OCI)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          # OCI/GHCR repository paths must be lowercase.
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           helm package chart/regionlock --version "$VERSION" --app-version "$VERSION" -d /tmp/chart
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-          helm push /tmp/chart/regionlock-*.tgz "oci://ghcr.io/${{ github.repository_owner }}/charts"
+          helm push /tmp/chart/regionlock-*.tgz "oci://ghcr.io/$OWNER/charts"

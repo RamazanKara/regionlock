@@ -81,4 +81,7 @@ type NetworkPolicySpec struct {
 	// EgressCIDRs is the flattened list of ipBlock.cidr entries across all
 	// egress rules.
 	EgressCIDRs []string `json:"egressCIDRs,omitempty"`
+	// Unrestricted is true when any egress rule has no peer selector (empty or
+	// absent `to`), which permits egress to every destination.
+	Unrestricted bool `json:"unrestricted,omitempty"`
 }

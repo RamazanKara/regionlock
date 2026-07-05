@@ -36,8 +36,24 @@ spec:
               - key: {{ include "regionlock.serviceTypeOrEmpty" . | quote }}
                 operator: Equals
                 value: ExternalName
+    - name: no-external-ips-service
+      match:
+        any:
+          - resources:
+              kinds:
+                - Service
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: Service exposes externalIPs, whose destination is not verifiable as EU [GDPR Art. 44]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.externalIPsCount" . | quote }}
+                operator: GreaterThan
+                value: 0
 {{- end }}
-    - name: no-unrestricted-egress
+    - name: no-unrestricted-egress-cidr
       match:
         any:
           - resources:
@@ -46,13 +62,27 @@ spec:
       {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
       validate:
         message: >-
-          BLOCKED: NetworkPolicy permits unrestricted egress (0.0.0.0/0 or ::/0), which can reach non-EU destinations [GDPR Art. 46]
+          BLOCKED: NetworkPolicy permits a default-route egress (/0), which can reach non-EU destinations [GDPR Art. 46]
         deny:
           conditions:
-            any:
-              - key: {{ include "regionlock.egressCidrs" . | quote }}
-                operator: AnyIn
-                value:
-                  - 0.0.0.0/0
-                  - ::/0
+            all:
+              - key: {{ include "regionlock.openEgressCount" . | quote }}
+                operator: GreaterThan
+                value: 0
+    - name: no-open-egress-rule
+      match:
+        any:
+          - resources:
+              kinds:
+                - NetworkPolicy
+      {{- include "regionlock.exclude" .Values.excludeNamespaces | nindent 6 }}
+      validate:
+        message: >-
+          BLOCKED: NetworkPolicy egress rule with no peer selector permits egress to any destination [GDPR Art. 46]
+        deny:
+          conditions:
+            all:
+              - key: {{ include "regionlock.egressRuleCount" . | quote }}
+                operator: GreaterThan
+                value: {{ include "regionlock.egressWithPeersCount" . | quote }}
 {{- end }}

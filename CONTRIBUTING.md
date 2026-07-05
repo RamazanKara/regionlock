@@ -7,8 +7,10 @@ Thanks for helping make EU (and beyond) data-residency enforceable and provable.
 This is the highest-value contribution. A jurisdiction is two things:
 
 1. **A regulation ruleset** — `internal/regmap/data/<id>.json`, mapping each rule to its
-   legal provisions (see `eu-data-residency-v1.json` for the shape). Register it in
-   `internal/regmap/regmap.go` (`Available()` + the `switch` in `Load`).
+   legal provisions (see `eu-data-residency-v1.json` for the shape) and listing the
+   jurisdiction's in-territory `regions`. Register it in `internal/regmap/regmap.go` by
+   adding a `//go:embed data/<id>.json` var and one entry to the `rulesets` map;
+   `Available()` and `Load()` derive from that map automatically.
 2. **Matching enforcement policies** — `chart/regionlock/templates/policy-*.yaml`, or a new
    chart values profile, using the same `regionlock.io/rule-id` values so enforcement and
    evidence stay in lock-step.

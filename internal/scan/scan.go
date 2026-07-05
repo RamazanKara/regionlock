@@ -108,19 +108,24 @@ func ParseBytes(b []byte, source string) ([]model.Resource, error) {
 	return out, nil
 }
 
-// FromKubectl scans a live cluster by shelling out to kubectl. It reuses the
-// exact same parser as the manifest path, so enforcement evidence is identical
-// whether it comes from Git or the running cluster. kubeconfig and kctx may be
-// empty to use the ambient configuration/current-context.
-func FromKubectl(ctx context.Context, kubeconfig, kctx string) ([]model.Resource, error) {
-	kinds := "pods,deployments,statefulsets,daemonsets,replicasets,jobs,cronjobs,persistentvolumeclaims,services,networkpolicies"
-	args := []string{"get", kinds, "--all-namespaces", "-o", "yaml"}
+// clusterKinds is the set of resources scanned from a live cluster.
+const clusterKinds = "pods,deployments,statefulsets,daemonsets,replicasets,jobs,cronjobs,persistentvolumeclaims,services,networkpolicies"
+
+// kubectlArgs builds the argv for the live-cluster scan.
+func kubectlArgs(kubeconfig, kctx string) []string {
+	args := []string{"get", clusterKinds, "--all-namespaces", "-o", "yaml"}
 	if kubeconfig != "" {
 		args = append(args, "--kubeconfig", kubeconfig)
 	}
 	if kctx != "" {
 		args = append(args, "--context", kctx)
 	}
+	return args
+}
+
+// kubectlRunner executes kubectl and returns stdout. It is a package variable so
+// tests can inject a fake without a cluster.
+var kubectlRunner = func(ctx context.Context, args []string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "kubectl", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -128,7 +133,19 @@ func FromKubectl(ctx context.Context, kubeconfig, kctx string) ([]model.Resource
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("kubectl %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
-	rs, err := ParseBytes(stdout.Bytes(), "cluster")
+	return stdout.Bytes(), nil
+}
+
+// FromKubectl scans a live cluster by shelling out to kubectl. It reuses the
+// exact same parser as the manifest path, so enforcement evidence is identical
+// whether it comes from Git or the running cluster. kubeconfig and kctx may be
+// empty to use the ambient configuration/current-context.
+func FromKubectl(ctx context.Context, kubeconfig, kctx string) ([]model.Resource, error) {
+	out, err := kubectlRunner(ctx, kubectlArgs(kubeconfig, kctx))
+	if err != nil {
+		return nil, err
+	}
+	rs, err := ParseBytes(out, "cluster")
 	if err != nil {
 		return nil, fmt.Errorf("parsing kubectl output: %w", err)
 	}
@@ -175,7 +192,7 @@ func extract(doc map[string]any, source string) (model.Resource, bool) {
 		spec := mapAt(doc, "spec")
 		r.PVC = &model.PVCSpec{StorageClassName: strAt(spec, "storageClassName")}
 	case "NetworkPolicy":
-		r.NetworkPolicy = &model.NetworkPolicySpec{EgressCIDRs: extractEgressCIDRs(mapAt(doc, "spec"))}
+		r.NetworkPolicy = extractNetworkPolicy(mapAt(doc, "spec"))
 	}
 
 	return r, true
@@ -194,13 +211,17 @@ func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 		pt.RegionValues = append(pt.RegionValues, v)
 	}
 
-	// nodeSelector on the region key.
-	if v, ok := pt.NodeSelector[RegionKey]; ok {
+	// nodeSelector on the region key is an equality — a positive region pin.
+	if v, ok := pt.NodeSelector[RegionKey]; ok && strings.TrimSpace(v) != "" {
 		pt.HasRegionConstraint = true
 		add(v)
 	}
 
 	// requiredDuringScheduling nodeAffinity matchExpressions on the region key.
+	// Only operator "In" with concrete values positively pins the workload to a
+	// region. NotIn/Exists/DoesNotExist do NOT pin to a concrete allowed region,
+	// so they must not be recorded as EU evidence (else a "NotIn eu-central-1"
+	// term would be misread as an EU pin).
 	terms := sliceAt(mapAt(pod, "affinity", "nodeAffinity", "requiredDuringSchedulingIgnoredDuringExecution"), "nodeSelectorTerms")
 	for _, t := range terms {
 		tm, ok := t.(map[string]any)
@@ -215,9 +236,12 @@ func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 			if strAt(em, "key") != RegionKey {
 				continue
 			}
-			pt.HasRegionConstraint = true
-			for _, v := range strSlice(sliceAt(em, "values")) {
-				add(v)
+			vals := strSlice(sliceAt(em, "values"))
+			if strAt(em, "operator") == "In" && len(vals) > 0 {
+				pt.HasRegionConstraint = true
+				for _, v := range vals {
+					add(v)
+				}
 			}
 		}
 	}
@@ -226,24 +250,31 @@ func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 	return pt
 }
 
-func extractEgressCIDRs(spec map[string]any) []string {
-	var cidrs []string
+func extractNetworkPolicy(spec map[string]any) *model.NetworkPolicySpec {
+	np := &model.NetworkPolicySpec{}
 	for _, e := range sliceAt(spec, "egress") {
 		em, ok := e.(map[string]any)
 		if !ok {
 			continue
 		}
-		for _, to := range sliceAt(em, "to") {
-			tm, ok := to.(map[string]any)
+		to := sliceAt(em, "to")
+		// An egress rule with no peer selector (empty/absent `to`) permits egress
+		// to every destination — strictly more open than 0.0.0.0/0.
+		if len(to) == 0 {
+			np.Unrestricted = true
+			continue
+		}
+		for _, t := range to {
+			tm, ok := t.(map[string]any)
 			if !ok {
 				continue
 			}
 			if cidr := strAt(mapAt(tm, "ipBlock"), "cidr"); cidr != "" {
-				cidrs = append(cidrs, cidr)
+				np.EgressCIDRs = append(np.EgressCIDRs, cidr)
 			}
 		}
 	}
-	return cidrs
+	return np
 }
 
 // --- small navigation helpers over decoded YAML (map[string]any) ---

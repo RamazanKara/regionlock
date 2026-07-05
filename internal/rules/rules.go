@@ -150,10 +150,13 @@ func evalRegion(r model.Resource, cfg Config) []Finding {
 		return nil
 	}
 	pt := r.PodTemplate
-	if !pt.HasRegionConstraint {
+	// A workload is "pinned" only if it declares a positive, concrete region via
+	// nodeSelector or an In-nodeAffinity term. Exists/DoesNotExist/NotIn produce
+	// no concrete values, so they do not count as an EU pin.
+	if !pt.HasRegionConstraint || len(pt.RegionValues) == 0 {
 		if cfg.RequireRegion {
 			return []Finding{newFinding(r, RuleEURegion, Fail,
-				"no EU region constraint declared (set topology.kubernetes.io/region via nodeSelector or nodeAffinity)")}
+				"no EU region constraint declared (set topology.kubernetes.io/region to an EU region via nodeSelector or an In nodeAffinity term)")}
 		}
 		return []Finding{newFinding(r, RuleEURegion, Skip, "no region constraint declared (RequireRegion disabled)")}
 	}
@@ -175,16 +178,22 @@ func evalEgress(r model.Resource, cfg Config) []Finding {
 	switch {
 	case r.Service != nil:
 		svc := r.Service
-		if strings.EqualFold(svc.Type, "ExternalName") && !cfg.AllowExternalName {
-			return []Finding{newFinding(r, RuleNoEgress, Fail,
-				fmt.Sprintf("Service proxies to external endpoint %q (potential extra-EU transfer)", svc.ExternalName))}
-		}
-		if len(svc.ExternalIPs) > 0 {
-			return []Finding{newFinding(r, RuleNoEgress, Fail,
-				fmt.Sprintf("Service exposes externalIPs %s (destination not verifiable as EU)", strings.Join(svc.ExternalIPs, ", ")))}
+		if !cfg.AllowExternalName {
+			if strings.EqualFold(svc.Type, "ExternalName") {
+				return []Finding{newFinding(r, RuleNoEgress, Fail,
+					fmt.Sprintf("Service proxies to external endpoint %q (potential extra-EU transfer)", svc.ExternalName))}
+			}
+			if len(svc.ExternalIPs) > 0 {
+				return []Finding{newFinding(r, RuleNoEgress, Fail,
+					fmt.Sprintf("Service exposes externalIPs %s (destination not verifiable as EU)", strings.Join(svc.ExternalIPs, ", ")))}
+			}
 		}
 		return []Finding{newFinding(r, RuleNoEgress, Pass, "no external proxying")}
 	case r.NetworkPolicy != nil:
+		if r.NetworkPolicy.Unrestricted {
+			return []Finding{newFinding(r, RuleNoEgress, Fail,
+				"permits egress to any destination (egress rule with no peer selector)")}
+		}
 		var open []string
 		for _, c := range r.NetworkPolicy.EgressCIDRs {
 			if isUnrestricted(c) {

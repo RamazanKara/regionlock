@@ -34,6 +34,7 @@ func TestEURegionPlacement(t *testing.T) {
 		{"non-eu fails", workload("c", true, "us-east-1"), Fail},
 		{"mixed fails", workload("d", true, "eu-central-1", "us-east-1"), Fail},
 		{"missing constraint fails when required", workload("e", false), Fail},
+		{"constraint with no concrete region fails (Exists/DoesNotExist)", workload("f", true), Fail},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -45,6 +46,31 @@ func TestEURegionPlacement(t *testing.T) {
 				t.Fatalf("got %s, want %s (%s)", f.Status, tc.want, f.Message)
 			}
 		})
+	}
+}
+
+func TestEgressUnrestrictedNetworkPolicy(t *testing.T) {
+	cfg := DefaultConfig()
+	// An egress rule with no peer selector (allow-all) must fail even though it
+	// has zero CIDRs.
+	np := model.Resource{Kind: "NetworkPolicy", Name: "allow-all", Namespace: "shop",
+		NetworkPolicy: &model.NetworkPolicySpec{Unrestricted: true}}
+	if f, _ := findingFor(Evaluate([]model.Resource{np}, cfg), RuleNoEgress); f.Status != Fail {
+		t.Fatalf("allow-all egress (empty `to`) should fail, got %s", f.Status)
+	}
+}
+
+func TestServiceExternalIPsFails(t *testing.T) {
+	cfg := DefaultConfig()
+	svc := model.Resource{Kind: "Service", Name: "svc", Namespace: "shop",
+		Service: &model.ServiceSpec{Type: "ClusterIP", ExternalIPs: []string{"203.0.113.10"}}}
+	if f, _ := findingFor(Evaluate([]model.Resource{svc}, cfg), RuleNoEgress); f.Status != Fail {
+		t.Fatalf("Service with externalIPs should fail, got %s", f.Status)
+	}
+	// allowExternalName lifts both ExternalName and externalIPs.
+	permissive := NewConfig(func() Config { c := DefaultConfig(); c.AllowExternalName = true; return c }())
+	if f, _ := findingFor(Evaluate([]model.Resource{svc}, permissive), RuleNoEgress); f.Status != Pass {
+		t.Fatalf("externalIPs should pass when allowExternalName=true, got %s", f.Status)
 	}
 }
 

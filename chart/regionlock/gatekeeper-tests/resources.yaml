@@ -1,13 +1,56 @@
 # Test resources for `gator test` against the rendered Gatekeeper policies.
-# The three "bad" workloads plus the ExternalName Service, open NetworkPolicy,
-# and un-annotated PVC should produce exactly 6 violations; pod-eu and pvc-good
-# should produce none. Exercised by the `gatekeeper` CI job.
+# Expected: exactly 9 violations. Violating: pod-us (nodeSelector non-EU),
+# pod-none (no region), pod-aff-us (nodeAffinity non-EU), pvc-bad (cmk+enc = 2),
+# ext (ExternalName), svc-extip (externalIPs), open-egress (0.0.0.0/0),
+# np-empty-to (allow-all). Clean: pod-eu, pod-aff-eu, pvc-good.
+# Exercised by the `gatekeeper` CI job.
 apiVersion: v1
 kind: Pod
 metadata: { name: pod-us, namespace: shop }
 spec:
   nodeSelector: { topology.kubernetes.io/region: us-east-1 }
   containers: [{ name: c, image: nginx }]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-aff-us, namespace: shop }
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [us-east-1] }
+  containers: [{ name: c, image: nginx }]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-aff-eu, namespace: shop }
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [eu-central-1] }
+  containers: [{ name: c, image: nginx }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: svc-extip, namespace: shop }
+spec:
+  type: ClusterIP
+  externalIPs: [203.0.113.10]
+  selector: { app: x }
+  ports: [{ port: 80 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: np-empty-to, namespace: shop }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress: [{}]
 ---
 apiVersion: v1
 kind: Pod

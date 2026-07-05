@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-05
+
 ### Added
 - **OPA/Gatekeeper engine** (`--set engine=kyverno|gatekeeper|both`): ConstraintTemplates +
   Constraints mirroring the Kyverno policies, CI-verified with `gator` to produce identical
@@ -28,6 +30,20 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 - Rulesets now include a `regions` allow-list; the CLI uses the selected jurisdiction's
   regions as the baseline (config/flags still override).
+
+### Fixed (from adversarial review)
+- **Critical fail-open**: the admission policies (Kyverno + Gatekeeper) now evaluate
+  `nodeAffinity` region terms, not just `nodeSelector`. Previously a non-EU pod pinned via
+  `nodeAffinity` was admitted while the CLI flagged it.
+- The scanner is now `nodeAffinity` operator-aware: only `In` with concrete values is a
+  positive region pin. `NotIn`/`Exists`/`DoesNotExist` no longer read as an EU pin, and a
+  constraint with no concrete region no longer passes.
+- Egress: `Service.spec.externalIPs` and NetworkPolicy egress rules with no peer selector
+  (allow-all) are now flagged by the CLI *and* both engines; default-route detection is
+  `/0`-suffix based (catches `0.0.0.0/0`, `::/0`, and non-canonical spellings).
+- Kyverno and Gatekeeper policies are now validated offline in CI (`kyverno apply` and
+  `gator test`) to produce the same violations as the rule engine.
+- Release: the OCI chart push lowercases the GHCR owner path.
 
 ## [0.1.0] — 2026-07-05
 
