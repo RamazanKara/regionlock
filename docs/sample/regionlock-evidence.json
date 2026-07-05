@@ -1,7 +1,7 @@
 {
   "tool": "regionlock",
   "version": "1.0.0-dev",
-  "generatedAt": "2026-07-05T15:30:15Z",
+  "generatedAt": "2026-07-05T15:45:24Z",
   "source": "testdata/violating",
   "ruleset": {
     "id": "eu-data-residency-v1",
@@ -16,6 +16,7 @@
     "pass": 0,
     "fail": 9,
     "skip": 0,
+    "waived": 0,
     "score": 0,
     "compliant": false
   },
@@ -360,6 +361,6 @@
   ],
   "integrity": {
     "algorithm": "sha256",
-    "digest": "f373de51f1ea1326203d625f88a915de344e0242860cd0508f3d0e500857804b"
+    "digest": "934d633f8894e13cc708705167c763bf061e914b915563fd0256baab4f775677"
   }
 }

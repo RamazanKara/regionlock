@@ -24,6 +24,11 @@ All notable changes to this project are documented here. The format follows
   ready-to-import Grafana dashboard under `dashboards/`.
 - **`--format oscal`**: a NIST OSCAL assessment-results document (deterministic UUIDs) so
   GRC tooling can ingest per-control pass/fail evidence.
+- **Waivers**: a `waivers:` list in `regionlock.yaml` records time-boxed, justified
+  exceptions (rule + optional kind/name/namespace + `expires` + `reason`). A matching
+  failure becomes `waived` (listed in the report, not counted as a violation, not gating
+  in `lint`) until it expires. Fail-closed: an expired waiver never suppresses a violation
+  and a malformed waiver is a hard error. Waivers are part of the signed report.
 
 ## [1.0.0] - 2026-07-05
 

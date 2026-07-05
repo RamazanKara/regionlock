@@ -30,6 +30,7 @@ type Meta struct {
 	Version     string
 	GeneratedAt time.Time
 	Source      string // "cluster", a manifest path, etc.
+	Waivers     []WaiverRecord
 }
 
 // ArticleRef is a regulation provision referenced by a finding.
@@ -52,9 +53,11 @@ type FindingOut struct {
 	Name        string       `json:"name"`
 	Namespace   string       `json:"namespace"`
 	Message     string       `json:"message"`
-	Source      string       `json:"source,omitempty"`
-	Articles    []ArticleRef `json:"articles,omitempty"`
-	Remediation string       `json:"remediation,omitempty"`
+	Source        string       `json:"source,omitempty"`
+	Articles      []ArticleRef `json:"articles,omitempty"`
+	Remediation   string       `json:"remediation,omitempty"`
+	WaiverReason  string       `json:"waiverReason,omitempty"`
+	WaiverExpires string       `json:"waiverExpires,omitempty"`
 }
 
 // RuleScore summarizes one rule across all resources.
@@ -65,6 +68,7 @@ type RuleScore struct {
 	Pass        int          `json:"pass"`
 	Fail        int          `json:"fail"`
 	Skip        int          `json:"skip"`
+	Waived      int          `json:"waived,omitempty"`
 	Articles    []ArticleRef `json:"articles,omitempty"`
 	Remediation string       `json:"remediation,omitempty"`
 }
@@ -75,6 +79,7 @@ type NamespaceScore struct {
 	Pass      int     `json:"pass"`
 	Fail      int     `json:"fail"`
 	Skip      int     `json:"skip"`
+	Waived    int     `json:"waived,omitempty"`
 	Score     float64 `json:"score"`
 }
 
@@ -85,8 +90,21 @@ type Summary struct {
 	Pass      int     `json:"pass"`
 	Fail      int     `json:"fail"`
 	Skip      int     `json:"skip"`
+	Waived    int     `json:"waived"`
 	Score     float64 `json:"score"`     // pass / (pass+fail) * 100
-	Compliant bool    `json:"compliant"` // no failures
+	Compliant bool    `json:"compliant"` // no (unwaived) failures
+}
+
+// WaiverRecord documents a configured exception and how it was applied.
+type WaiverRecord struct {
+	Rule      string `json:"rule"`
+	Kind      string `json:"kind,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Expires   string `json:"expires"`
+	Reason    string `json:"reason"`
+	Active    bool   `json:"active"`
+	Matched   int    `json:"matched"`
 }
 
 // Signature is an optional ed25519 signature over the report digest.
@@ -123,6 +141,7 @@ type Report struct {
 	RuleScores  []RuleScore      `json:"ruleScores"`
 	Namespaces  []NamespaceScore `json:"namespaces"`
 	Findings    []FindingOut     `json:"findings"`
+	Waivers     []WaiverRecord   `json:"waivers,omitempty"`
 	Integrity   Integrity        `json:"integrity"`
 }
 
@@ -137,6 +156,7 @@ func Build(findings []rules.Finding, rs *regmap.Ruleset, meta Meta) Report {
 			ID: rs.ID, Version: rs.Version, Title: rs.Title,
 			Jurisdiction: rs.Jurisdiction, Updated: rs.Updated,
 		},
+		Waivers: meta.Waivers,
 	}
 
 	resources := map[string]bool{}
@@ -157,6 +177,8 @@ func Build(findings []rules.Finding, rs *regmap.Ruleset, meta Meta) Report {
 		if f.Status == rules.Fail {
 			fo.Remediation = rs.Remediation(f.RuleID)
 		}
+		fo.WaiverReason = f.WaiverReason
+		fo.WaiverExpires = f.WaiverExpires
 		rep.Findings = append(rep.Findings, fo)
 
 		ns := nsAgg[f.Namespace]
@@ -184,6 +206,10 @@ func Build(findings []rules.Finding, rs *regmap.Ruleset, meta Meta) Report {
 			rep.Summary.Skip++
 			ns.Skip++
 			rc.Skip++
+		case rules.Waived:
+			rep.Summary.Waived++
+			ns.Waived++
+			rc.Waived++
 		}
 	}
 
@@ -275,14 +301,14 @@ func (r Report) Console() string {
 	fmt.Fprintf(&b, "Regionlock evidence: %s\n", r.Ruleset.Title)
 	fmt.Fprintf(&b, "ruleset %s@%s  source=%s  generated=%s\n\n",
 		r.Ruleset.ID, r.Ruleset.Version, r.Source, r.GeneratedAt)
-	fmt.Fprintf(&b, "VERDICT: %s   score %.0f%%   (%d pass / %d fail / %d skip across %d checks)\n\n",
-		verdict, r.Summary.Score, r.Summary.Pass, r.Summary.Fail, r.Summary.Skip, r.Summary.Checks)
+	fmt.Fprintf(&b, "VERDICT: %s   score %.0f%%   (%d pass / %d fail / %d waived / %d skip across %d checks)\n\n",
+		verdict, r.Summary.Score, r.Summary.Pass, r.Summary.Fail, r.Summary.Waived, r.Summary.Skip, r.Summary.Checks)
 
 	tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "RULE\tSEVERITY\tPASS\tFAIL\tSKIP\tARTICLES")
+	fmt.Fprintln(tw, "RULE\tSEVERITY\tPASS\tFAIL\tWAIVED\tSKIP\tARTICLES")
 	for _, rc := range r.RuleScores {
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%s\n",
-			rc.RuleID, rc.Severity, rc.Pass, rc.Fail, rc.Skip, articleList(rc.Articles))
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s\n",
+			rc.RuleID, rc.Severity, rc.Pass, rc.Fail, rc.Waived, rc.Skip, articleList(rc.Articles))
 	}
 	_ = tw.Flush()
 
@@ -298,6 +324,24 @@ func (r Report) Console() string {
 		for _, rc := range r.RuleScores {
 			if rc.Fail > 0 && rc.Remediation != "" {
 				fmt.Fprintf(&b, "  • %s: %s\n", rc.RuleID, rc.Remediation)
+			}
+		}
+	}
+	if len(r.Waivers) > 0 {
+		fmt.Fprintf(&b, "\nWaivers:\n")
+		for _, f := range r.Findings {
+			if f.Status == rules.Waived {
+				fmt.Fprintf(&b, "  ~ [%s] %s/%s (%s): %s  (waived until %s: %s)\n",
+					f.RuleID, f.Kind, f.Name, f.Namespace, f.Message, f.WaiverExpires, f.WaiverReason)
+			}
+		}
+		for _, w := range r.Waivers {
+			switch {
+			case !w.Active:
+				fmt.Fprintf(&b, "  ! EXPIRED, not applied: %s %s (expired %s): %s\n",
+					w.Rule, waiverScope(w), w.Expires, w.Reason)
+			case w.Matched == 0:
+				fmt.Fprintf(&b, "  · unused: %s %s (expires %s)\n", w.Rule, waiverScope(w), w.Expires)
 			}
 		}
 	}
@@ -322,8 +366,8 @@ func (r Report) Markdown() string {
 	fmt.Fprintf(&b, "| Jurisdiction | %s |\n", r.Ruleset.Jurisdiction)
 	fmt.Fprintf(&b, "| Source | `%s` |\n", r.Source)
 	fmt.Fprintf(&b, "| Generated | %s |\n", r.GeneratedAt)
-	fmt.Fprintf(&b, "| Checks | %d (%d pass / %d fail / %d skip) across %d resources |\n\n",
-		r.Summary.Checks, r.Summary.Pass, r.Summary.Fail, r.Summary.Skip, r.Summary.Resources)
+	fmt.Fprintf(&b, "| Checks | %d (%d pass / %d fail / %d waived / %d skip) across %d resources |\n\n",
+		r.Summary.Checks, r.Summary.Pass, r.Summary.Fail, r.Summary.Waived, r.Summary.Skip, r.Summary.Resources)
 
 	fmt.Fprintf(&b, "## Control summary\n\n")
 	fmt.Fprintf(&b, "| Control | Severity | Pass | Fail | Skip | Evidences |\n|---|---|---:|---:|---:|---|\n")
@@ -349,6 +393,26 @@ func (r Report) Markdown() string {
 		for _, rc := range r.RuleScores {
 			if rc.Fail > 0 && rc.Remediation != "" {
 				fmt.Fprintf(&b, "- **%s**: %s\n", rc.RuleID, rc.Remediation)
+			}
+		}
+	}
+
+	if len(r.Waivers) > 0 {
+		fmt.Fprintf(&b, "\n## Waivers\n\n")
+		fmt.Fprintf(&b, "| Control | Resource | Namespace | Waived until | Reason |\n|---|---|---|---|---|\n")
+		for _, f := range r.Findings {
+			if f.Status == rules.Waived {
+				fmt.Fprintf(&b, "| %s | `%s/%s` | %s | %s | %s |\n",
+					f.RuleID, f.Kind, f.Name, f.Namespace, f.WaiverExpires, f.WaiverReason)
+			}
+		}
+		for _, w := range r.Waivers {
+			switch {
+			case !w.Active:
+				fmt.Fprintf(&b, "\n> ⚠️ Expired waiver (not applied): `%s` %s, expired %s: %s\n",
+					w.Rule, waiverScope(w), w.Expires, w.Reason)
+			case w.Matched == 0:
+				fmt.Fprintf(&b, "\n> Unused waiver: `%s` %s, expires %s\n", w.Rule, waiverScope(w), w.Expires)
 			}
 		}
 	}
@@ -382,6 +446,24 @@ func (r Report) HTML() (string, error) {
 func (r Report) disclaimer() string {
 	return "This report evidences technical and organizational placement controls enforced on the cluster. " +
 		"It is not a cryptographic attestation that data never physically left the in-territory region."
+}
+
+// waiverScope renders a waiver's resource selector for display.
+func waiverScope(w WaiverRecord) string {
+	var parts []string
+	if w.Kind != "" {
+		parts = append(parts, w.Kind)
+	}
+	if w.Namespace != "" {
+		parts = append(parts, "ns="+w.Namespace)
+	}
+	if w.Name != "" {
+		parts = append(parts, "name="+w.Name)
+	}
+	if len(parts) == 0 {
+		return "(all resources)"
+	}
+	return "(" + strings.Join(parts, ", ") + ")"
 }
 
 func articleList(a []ArticleRef) string {

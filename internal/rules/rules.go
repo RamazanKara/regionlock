@@ -20,13 +20,28 @@ const (
 	RuleEncryptedAt = "encryption-at-rest"
 )
 
+// RuleIDs returns the engine's rule IDs in a stable order.
+func RuleIDs() []string {
+	return []string{RuleEURegion, RuleNoEgress, RuleCMK, RuleEncryptedAt}
+}
+
+func isKnownRule(id string) bool {
+	for _, r := range RuleIDs() {
+		if r == id {
+			return true
+		}
+	}
+	return false
+}
+
 // Status is the outcome of a rule against a single resource.
 type Status string
 
 const (
-	Pass Status = "pass"
-	Fail Status = "fail"
-	Skip Status = "skip"
+	Pass   Status = "pass"
+	Fail   Status = "fail"
+	Skip   Status = "skip"
+	Waived Status = "waived" // a Fail suppressed by an active, documented waiver
 )
 
 // Finding is one rule evaluated against one resource.
@@ -38,7 +53,10 @@ type Finding struct {
 	Namespace string         `json:"namespace"`
 	Message   string         `json:"message"`
 	Source    string         `json:"source,omitempty"`
-	Resource  model.Resource `json:"-"`
+	// WaiverReason and WaiverExpires are set only when Status is Waived.
+	WaiverReason  string         `json:"waiverReason,omitempty"`
+	WaiverExpires string         `json:"waiverExpires,omitempty"`
+	Resource      model.Resource `json:"-"`
 }
 
 // Config controls how strict the rules are. Zero value is not valid; use

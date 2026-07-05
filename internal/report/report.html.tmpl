@@ -75,13 +75,14 @@
   <h2>Control summary</h2>
   <table>
     <tr><th>Control</th><th>Severity</th><th class="num">Pass</th><th class="num">Fail</th>
-      <th class="num">Skip</th><th>Evidences (articles)</th></tr>
+      <th class="num">Waived</th><th class="num">Skip</th><th>Evidences (articles)</th></tr>
     {{range .RuleScores}}
     <tr>
       <td>{{.RuleName}}<div class="mono">{{.RuleID}}</div></td>
       <td class="sev">{{.Severity}}</td>
       <td class="num">{{.Pass}}</td>
       <td class="num">{{.Fail}}</td>
+      <td class="num">{{.Waived}}</td>
       <td class="num">{{.Skip}}</td>
       <td class="art">{{articles .Articles}}</td>
     </tr>
@@ -108,6 +109,17 @@
     <tr><th>Control</th><th>Remediation</th></tr>
     {{range .RuleScores}}{{if gt .Fail 0}}
     <tr><td class="mono">{{.RuleID}}</td><td>{{.Remediation}}</td></tr>
+    {{end}}{{end}}
+  </table>
+  {{end}}
+
+  {{if .Waivers}}
+  <h2>Waivers (accepted exceptions)</h2>
+  <table>
+    <tr><th>Control</th><th>Resource</th><th>Namespace</th><th>Waived until</th><th>Reason</th></tr>
+    {{range .Findings}}{{if eq (printf "%s" .Status) "waived"}}
+    <tr><td class="mono">{{.RuleID}}</td><td class="mono">{{.Kind}}/{{.Name}}</td><td>{{.Namespace}}</td>
+      <td>{{.WaiverExpires}}</td><td>{{.WaiverReason}}</td></tr>
     {{end}}{{end}}
   </table>
   {{end}}

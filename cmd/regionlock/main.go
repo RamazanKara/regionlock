@@ -181,6 +181,39 @@ func buildConfig(path string, rulesetRegions []string, f cfgFlags) (rules.Config
 	return cfg, nil
 }
 
+// parseWaivers reads the `waivers:` list from a regionlock.yaml config.
+func parseWaivers(path string) ([]rules.Waiver, error) {
+	if path == "" {
+		return nil, nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading config: %w", err)
+	}
+	var fc struct {
+		Waivers []rules.Waiver `yaml:"waivers"`
+	}
+	if err := yaml.Unmarshal(b, &fc); err != nil {
+		return nil, fmt.Errorf("parsing config waivers: %w", err)
+	}
+	return fc.Waivers, nil
+}
+
+func toWaiverRecords(outcomes []rules.WaiverOutcome) []report.WaiverRecord {
+	if len(outcomes) == 0 {
+		return nil
+	}
+	out := make([]report.WaiverRecord, len(outcomes))
+	for i, o := range outcomes {
+		out[i] = report.WaiverRecord{
+			Rule: o.Waiver.Rule, Kind: o.Waiver.Kind, Name: o.Waiver.Name,
+			Namespace: o.Waiver.Namespace, Expires: o.Waiver.Expires, Reason: o.Waiver.Reason,
+			Active: o.Active, Matched: o.Matched,
+		}
+	}
+	return out
+}
+
 func gather(manifests, kubeconfig, kctx string) ([]model.Resource, string, error) {
 	if manifests != "" {
 		rs, errs := scan.ParseManifests(manifests)
@@ -232,8 +265,22 @@ func runReport(args []string) error {
 		return err
 	}
 	findings := rules.Evaluate(resources, cfg)
+	waivers, err := parseWaivers(*configPath)
+	if err != nil {
+		return err
+	}
+	var waiverRecords []report.WaiverRecord
+	if len(waivers) > 0 {
+		var outcomes []rules.WaiverOutcome
+		findings, outcomes, err = rules.ApplyWaivers(findings, waivers, time.Now())
+		if err != nil {
+			return err
+		}
+		waiverRecords = toWaiverRecords(outcomes)
+	}
 	rep := report.Build(findings, rs, report.Meta{
 		Tool: toolName, Version: Version, GeneratedAt: time.Now(), Source: source,
+		Waivers: waiverRecords,
 	})
 	if *signKey != "" {
 		seed, err := readSeed(*signKey)
@@ -366,6 +413,21 @@ func runLint(args []string) error {
 		return err
 	}
 	findings := rules.Evaluate(resources, cfg)
+	waivers, err := parseWaivers(*configPath)
+	if err != nil {
+		return err
+	}
+	waived := 0
+	if len(waivers) > 0 {
+		var outcomes []rules.WaiverOutcome
+		findings, outcomes, err = rules.ApplyWaivers(findings, waivers, time.Now())
+		if err != nil {
+			return err
+		}
+		for _, o := range outcomes {
+			waived += o.Matched
+		}
+	}
 
 	fails, gateFails := 0, 0
 	for _, f := range findings {
@@ -388,10 +450,14 @@ func runLint(args []string) error {
 		fmt.Printf("%s [%s/%s] %s/%s (%s): %s\n", mark, f.RuleID, sev, f.Kind, f.Name, f.Namespace, f.Message)
 	}
 	if fails == 0 {
-		fmt.Printf("regionlock: %d resources, no data-residency violations ✓\n", len(resources))
+		if waived > 0 {
+			fmt.Printf("regionlock: %d resources, no data-residency violations ✓ (%d waived)\n", len(resources), waived)
+		} else {
+			fmt.Printf("regionlock: %d resources, no data-residency violations ✓\n", len(resources))
+		}
 		return nil
 	}
-	fmt.Printf("\nregionlock: %d violation(s), %d gating (--fail-on=%s)\n", fails, gateFails, *failOn)
+	fmt.Printf("\nregionlock: %d violation(s), %d gating (--fail-on=%s), %d waived\n", fails, gateFails, *failOn, waived)
 	if gateFails > 0 {
 		os.Exit(1)
 	}

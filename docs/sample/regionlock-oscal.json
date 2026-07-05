@@ -1,9 +1,9 @@
 {
   "assessment-results": {
-    "uuid": "004e1de1-728a-5b4e-a81e-4c9e63bcf109",
+    "uuid": "2e954ee4-c3f6-5b7a-a582-a961d9d32ba6",
     "metadata": {
       "title": "Regionlock data-residency evidence: EU Data Residency & Sovereignty Baseline",
-      "last-modified": "2026-07-05T15:30:15Z",
+      "last-modified": "2026-07-05T15:45:24Z",
       "version": "1.0.0-dev",
       "oscal-version": "1.1.2"
     },
@@ -12,10 +12,10 @@
     },
     "results": [
       {
-        "uuid": "072b2528-d80a-535e-8685-896d90ec4cf9",
+        "uuid": "5d7e509c-eb51-5cf7-b3b6-f7f7837d0057",
         "title": "Regionlock scan of testdata/violating",
         "description": "Compliance score 0% (0 pass / 9 fail / 0 skip across 9 checks).",
-        "start": "2026-07-05T15:30:15Z",
+        "start": "2026-07-05T15:45:24Z",
         "reviewed-controls": {
           "control-selections": [
             {
@@ -38,7 +38,7 @@
         },
         "findings": [
           {
-            "uuid": "9547594c-699e-516f-a48c-f0efc1f9614a",
+            "uuid": "c78fe04c-bdb8-5e3d-a2a1-17c8d8b39ff7",
             "title": "Storage uses customer-managed keys",
             "description": "Storage uses customer-managed keys: 0 pass / 1 fail / 0 skip. Remediation: Use a customer-managed key: annotate the PVC with regionlock.io/cmk-key-id=<kms-key-id>, or use a StorageClass whose parameters set a CMK (kmsKeyId, diskEncryptionSetID, or disk-encryption-kms-key).",
             "target": {
@@ -50,7 +50,7 @@
             }
           },
           {
-            "uuid": "75216bce-6d2b-54f3-91a1-6fc725aec54b",
+            "uuid": "0b2ac2eb-ed92-56a0-943b-1a1c610007a7",
             "title": "Encryption at rest declared",
             "description": "Encryption at rest declared: 0 pass / 1 fail / 0 skip. Remediation: Declare encryption at rest: label the PVC regionlock.io/encrypted=\"true\", or use an approved encrypted StorageClass listed in approvedStorageClasses.",
             "target": {
@@ -62,7 +62,7 @@
             }
           },
           {
-            "uuid": "383605e4-aad1-5d49-9007-6c52b491d7fa",
+            "uuid": "c7c6b298-06bf-54ee-ae1f-442f07a104e0",
             "title": "Workloads pinned to an EU region",
             "description": "Workloads pinned to an EU region: 0 pass / 3 fail / 0 skip. Remediation: Pin the workload to an in-territory region: set topology.kubernetes.io/region (via nodeSelector, or a required nodeAffinity In term on EVERY term) to one of the ruleset's allow-listed regions. On a single-region cluster, set clusterRegion instead of labelling every workload.",
             "target": {
@@ -74,7 +74,7 @@
             }
           },
           {
-            "uuid": "1fba34fa-900b-5b73-a32f-81f92f541cf5",
+            "uuid": "840c9046-f66e-5812-84ae-e89ffacda398",
             "title": "No unrestricted or extra-EU egress",
             "description": "No unrestricted or extra-EU egress: 0 pass / 4 fail / 0 skip. Remediation: Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs.",
             "target": {

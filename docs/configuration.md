@@ -20,6 +20,37 @@ the selected ruleset's defaults.
 Precedence for the region allow-list: **flags** > `--config` > the ruleset's
 `regions` > built-in EU default. See [`regionlock.example.yaml`](https://github.com/RamazanKara/regionlock/blob/master/regionlock.example.yaml).
 
+## Waivers (documented exceptions)
+
+A `waivers:` list in `regionlock.yaml` records **time-boxed, justified exceptions**.
+A waiver turns a matching *failure* into a `waived` result: it is listed in the
+report (with its reason and expiry) and does not count as a violation or gate CI,
+until it expires.
+
+```yaml
+waivers:
+  - rule: eu-region-placement      # required: one of the four control IDs
+    kind: Deployment               # optional matchers (empty = any)
+    name: checkout
+    namespace: analytics
+    expires: 2026-12-31            # required, YYYY-MM-DD (inclusive)
+    reason: "Approved DR failover (ticket SEC-1234)"   # required
+```
+
+Waivers are **fail-closed** by design:
+
+- An **expired** waiver never suppresses a violation; the finding is reported as a
+  failure again, and the expired waiver is flagged in the report.
+- A **malformed** waiver (missing `rule`/`reason`/`expires`, an unparseable date, or
+  an unknown rule id) is a hard error, so a typo can never silently hide a violation.
+
+`expires` is inclusive and evaluated against the **local calendar date** of the machine
+running `regionlock` (so a bare `YYYY-MM-DD` means "through that day" in your zone, not a
+UTC instant).
+
+`report` and `lint` both honor waivers. Signed reports include the waivers, so the
+exceptions are covered by the tamper-evident digest.
+
 ## Chart values (`chart/regionlock/values.yaml`)
 
 | Value | Default | Meaning |

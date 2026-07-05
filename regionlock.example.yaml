@@ -38,3 +38,19 @@ cmkAnnotation: regionlock.io/cmk-key-id
 # PVC label asserting encryption at rest (value must be "true"). A PVC also passes
 # if it uses a StorageClass with `encrypted: "true"` or a CMK parameter.
 encryptionLabel: regionlock.io/encrypted
+
+# Documented, time-boxed exceptions. A waiver turns a matching *failure* into a
+# "waived" result (recorded in the report, not counted as a violation) until it
+# expires. `rule`, `expires` (YYYY-MM-DD) and `reason` are required; empty
+# kind/name/namespace act as wildcards. Waivers are deliberately fail-closed: an
+# expired waiver never suppresses a violation, and a malformed one is a hard error.
+waivers:
+  - rule: eu-region-placement
+    namespace: analytics
+    expires: 2026-12-31
+    reason: "Approved DR failover to us-east-1 while eu-west-1 capacity is provisioned (ticket SEC-1234)."
+  # - rule: customer-managed-key
+  #   kind: PersistentVolumeClaim
+  #   name: legacy-cache
+  #   expires: 2026-09-30
+  #   reason: "Legacy volume scheduled for migration in Q3."

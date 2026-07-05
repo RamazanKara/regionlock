@@ -26,13 +26,14 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["resources", "checks", "pass", "fail", "skip", "score", "compliant"],
+      "required": ["resources", "checks", "pass", "fail", "skip", "waived", "score", "compliant"],
       "properties": {
         "resources": { "type": "integer", "minimum": 0 },
         "checks": { "type": "integer", "minimum": 0 },
         "pass": { "type": "integer", "minimum": 0 },
         "fail": { "type": "integer", "minimum": 0 },
         "skip": { "type": "integer", "minimum": 0 },
+        "waived": { "type": "integer", "minimum": 0 },
         "score": { "type": "number", "minimum": 0, "maximum": 100 },
         "compliant": { "type": "boolean" }
       }
@@ -40,6 +41,7 @@
     "ruleScores": { "type": ["array", "null"], "items": { "$ref": "#/$defs/ruleScore" } },
     "namespaces": { "type": ["array", "null"], "items": { "$ref": "#/$defs/namespaceScore" } },
     "findings": { "type": ["array", "null"], "items": { "$ref": "#/$defs/finding" } },
+    "waivers": { "type": ["array", "null"], "items": { "$ref": "#/$defs/waiver" } },
     "integrity": { "$ref": "#/$defs/integrity" }
   },
   "$defs": {
@@ -65,6 +67,7 @@
         "pass": { "type": "integer", "minimum": 0 },
         "fail": { "type": "integer", "minimum": 0 },
         "skip": { "type": "integer", "minimum": 0 },
+        "waived": { "type": "integer", "minimum": 0 },
         "articles": { "type": ["array", "null"], "items": { "$ref": "#/$defs/article" } },
         "remediation": { "type": "string" }
       }
@@ -78,6 +81,7 @@
         "pass": { "type": "integer", "minimum": 0 },
         "fail": { "type": "integer", "minimum": 0 },
         "skip": { "type": "integer", "minimum": 0 },
+        "waived": { "type": "integer", "minimum": 0 },
         "score": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
@@ -96,7 +100,24 @@
         "message": { "type": "string" },
         "source": { "type": "string" },
         "articles": { "type": ["array", "null"], "items": { "$ref": "#/$defs/article" } },
-        "remediation": { "type": "string" }
+        "remediation": { "type": "string" },
+        "waiverReason": { "type": "string" },
+        "waiverExpires": { "type": "string" }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "expires", "reason", "active", "matched"],
+      "properties": {
+        "rule": { "type": "string" },
+        "kind": { "type": "string" },
+        "name": { "type": "string" },
+        "namespace": { "type": "string" },
+        "expires": { "type": "string" },
+        "reason": { "type": "string" },
+        "active": { "type": "boolean" },
+        "matched": { "type": "integer", "minimum": 0 }
       }
     },
     "integrity": {
