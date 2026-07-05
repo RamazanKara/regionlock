@@ -1,9 +1,10 @@
 # Test resources for `gator test` (and `kyverno apply`) against the rendered
-# policies. Expected: exactly 14 violations. Region (7): pod-us, pod-aff-us,
-# pod-none, dep-us, dep-aff-us, cj-us, dep-escape (OR escape term). Egress (5):
-# ext (ExternalName), svc-extip (externalIPs), open-egress (0.0.0.0/0),
-# np-empty-to (allow-all), np-split (0.0.0.0/1 + 128.0.0.0/1). PVC (2): pvc-bad
-# (cmk + encryption). Clean: pod-eu, pod-aff-eu, dep-eu, pvc-good. CI-exercised.
+# policies. Expected: exactly 16 violations. Region (9): pod-us, pod-aff-us,
+# pod-none, dep-us, dep-aff-us, cj-us, dep-escape (OR escape), pod-beta-us
+# (legacy label), pod-empty-in (empty In). Egress (5): ext (ExternalName),
+# svc-extip (externalIPs), open-egress (0.0.0.0/0), np-empty-to (allow-all),
+# np-split (/1 split). PVC (2): pvc-bad (cmk + encryption). Clean: pod-eu,
+# pod-aff-eu, dep-eu, pvc-good. CI-exercised.
 apiVersion: v1
 kind: Pod
 metadata: { name: pod-us, namespace: shop }
@@ -126,6 +127,27 @@ spec:
               - matchExpressions:
                   - { key: disktype, operator: In, values: [ssd] }
       containers: [{ name: c, image: nginx }]
+---
+# Legacy beta region label, non-EU — must be blocked (engines recognize both keys).
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-beta-us, namespace: shop }
+spec:
+  nodeSelector: { failure-domain.beta.kubernetes.io/region: us-east-1 }
+  containers: [{ name: c, image: nginx }]
+---
+# A region In-expression with an EMPTY values list pins nothing → not declared.
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-empty-in, namespace: shop }
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [] }
+  containers: [{ name: c, image: nginx }]
 ---
 # Split default route: 0.0.0.0/1 + 128.0.0.0/1 cover the whole space but neither
 # ends in /0 — must still be blocked via the /1 check.

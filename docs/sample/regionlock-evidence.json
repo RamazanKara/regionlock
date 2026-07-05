@@ -1,7 +1,7 @@
 {
   "tool": "regionlock",
   "version": "0.3.0",
-  "generatedAt": "2026-07-05T09:47:21Z",
+  "generatedAt": "2026-07-05T10:01:23Z",
   "source": "testdata/violating",
   "ruleset": {
     "id": "eu-data-residency-v1",
@@ -347,6 +347,6 @@
   ],
   "integrity": {
     "algorithm": "sha256",
-    "digest": "c3a2bfbe35a8ae61ca8fe95d3e98a451d407e1cb17b1416818cfa307a0f2b13c"
+    "digest": "9f51e1c4bf7019514c596b301683714ce4b7b9de32744f50a179f4d2394d53c6"
   }
 }

@@ -42,9 +42,13 @@ spec:
 
         controller_kinds := {"Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job"}
 
-        # nodeSelector region pin outside the EU.
+        # The region label keys Regionlock recognizes: the well-known key and the
+        # deprecated beta key (matching the CLI).
+        region_keys := {"topology.kubernetes.io/region", "failure-domain.beta.kubernetes.io/region"}
+
+        # nodeSelector region pin outside the EU (either region key).
         violation[{"msg": msg}] {
-          region := pod_spec.nodeSelector["topology.kubernetes.io/region"]
+          region := nodeselector_regions[_]
           not region_allowed(region)
           msg := sprintf("BLOCKED: non-EU region \"%v\" (nodeSelector) violates EU data-residency policy [GDPR Art. 44]", [region])
         }
@@ -66,8 +70,13 @@ spec:
           msg := "BLOCKED: workload is not guaranteed to stay in an EU region — pin topology.kubernetes.io/region on nodeSelector or EVERY nodeAffinity term [GDPR Art. 44]"
         }
 
+        nodeselector_regions[v] {
+          region_keys[k]
+          v := pod_spec.nodeSelector[k]
+        }
+
         has_nodeselector_region {
-          pod_spec.nodeSelector["topology.kubernetes.io/region"]
+          nodeselector_regions[_]
         }
 
         affinity_terms := pod_spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms
@@ -77,16 +86,19 @@ spec:
           count([t | t := affinity_terms[_]; term_has_region(t)]) == count(affinity_terms)
         }
 
+        # A term constrains the region only if it has an In-expression on a region
+        # key with a non-empty values list (an empty In pins nothing).
         term_has_region(t) {
           expr := t.matchExpressions[_]
-          expr.key == "topology.kubernetes.io/region"
+          region_keys[expr.key]
           expr.operator == "In"
+          count(expr.values) > 0
         }
 
         affinity_region_values[v] {
           term := affinity_terms[_]
           expr := term.matchExpressions[_]
-          expr.key == "topology.kubernetes.io/region"
+          region_keys[expr.key]
           expr.operator == "In"
           v := expr.values[_]
         }

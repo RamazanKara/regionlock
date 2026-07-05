@@ -14,23 +14,26 @@ Kyverno JMESPath expressions. These are emitted VERBATIM into the rendered
 manifest for Kyverno to evaluate at admission time. Backtick raw strings keep
 Helm from trying to interpret Kyverno's own {{ }} braces.
 */}}
+{{/* nodeSelector region value, coalescing the well-known key and the deprecated
+     beta key (matches the CLI's recognized region keys). */}}
 {{- define "regionlock.regionExpr" -}}
-{{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" }}` }}
+{{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" || request.object.spec.nodeSelector."failure-domain.beta.kubernetes.io/region" }}` }}
 {{- end -}}
 
 {{- define "regionlock.regionExprOrEmpty" -}}
-{{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" || '' }}` }}
+{{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" || request.object.spec.nodeSelector."failure-domain.beta.kubernetes.io/region" || '' }}` }}
 {{- end -}}
 
 {{- define "regionlock.serviceTypeOrEmpty" -}}
 {{ `{{ request.object.spec.type || '' }}` }}
 {{- end -}}
 
-{{/* Region values pinned via required nodeAffinity In-terms (flattened list).
-     The `[]` after the filter flattens the matchExpression projection so the
-     result is a flat list of region strings, not a list-of-lists. */}}
+{{/* Region values pinned via required nodeAffinity In-terms (flattened list),
+     across both region keys, requiring non-empty values. The `&& values` guard
+     drops an empty-values In (which the CLI also ignores); the flat OR-of-ANDs
+     avoids JMESPath parentheses; the trailing `[]` flattens the projection. */}}
 {{- define "regionlock.regionAffinityValues" -}}
-{{ `{{ request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In'][].values[] }}` }}
+{{ `{{ request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In' && values || key=='failure-domain.beta.kubernetes.io/region' && operator=='In' && values][].values[] }}` }}
 {{- end -}}
 
 {{/* Total number of required nodeAffinity terms. */}}
@@ -38,11 +41,12 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{ `{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms || '') }}` }}
 {{- end -}}
 
-{{/* Number of terms that carry a region In-expression. If this is less than the
-     total term count, some term is region-unconstrained (an OR escape hatch) and
-     the workload is not guaranteed to stay in-region. */}}
+{{/* Number of terms that carry a non-empty region In-expression (either region
+     key). If this is less than the total term count, some term is
+     region-unconstrained (an OR escape hatch) and the workload is not guaranteed
+     to stay in-region. */}}
 {{- define "regionlock.regionTermsCount" -}}
-{{ `{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[?matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In']] || '') }}` }}
+{{ `{{ length(request.object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[?matchExpressions[?key=='topology.kubernetes.io/region' && operator=='In' && values || key=='failure-domain.beta.kubernetes.io/region' && operator=='In' && values]] || '') }}` }}
 {{- end -}}
 
 {{/* Count of Service externalIPs ('' default has length 0 for absent/empty). */}}

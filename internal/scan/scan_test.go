@@ -288,6 +288,21 @@ spec:
 	}
 }
 
+func TestEmptyInValuesIsNoConstraint(t *testing.T) {
+	// A region In-expression with an empty values list pins nothing.
+	pt := podTemplate(t, `
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - { key: topology.kubernetes.io/region, operator: In, values: [] }
+  containers: [{ name: c, image: nginx }]`)
+	if pt.HasRegionConstraint {
+		t.Fatalf("an empty In values list must not count as a region constraint: %+v", pt)
+	}
+}
+
 func TestLegacyRegionLabelRecognized(t *testing.T) {
 	vals, con := podRegions(t, `
   nodeSelector: { failure-domain.beta.kubernetes.io/region: eu-central-1 }
