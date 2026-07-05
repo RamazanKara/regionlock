@@ -8,7 +8,7 @@ audit. Three integration styles:
 ```yaml
 - uses: actions/checkout@v4
 - id: regionlock
-  uses: RamazanKara/regionlock@v0.3.0
+  uses: RamazanKara/regionlock@v1.0.0
   with:
     manifests: ./k8s
     regulation: eu-data-residency-v1

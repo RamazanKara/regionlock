@@ -1,9 +1,8 @@
 # Stability & compatibility
 
-Regionlock follows [Semantic Versioning](https://semver.org). It is **pre-1.0**: the
-surfaces below are the **intended public API that will be frozen at 1.0.0**. Until then
-they are stable in practice but may change with a minor-version bump and a CHANGELOG note.
-At 1.0.0, breaking changes to these surfaces will bump the MAJOR version:
+Regionlock follows [Semantic Versioning](https://semver.org). As of **1.0.0**, the
+surfaces below are a **stable public API** — breaking changes to them bump the MAJOR
+version:
 
 ## Stable surfaces
 

@@ -148,7 +148,7 @@ Gate every PR and surface violations in the Security tab:
 ```yaml
 - uses: actions/checkout@v4
 - id: regionlock
-  uses: RamazanKara/regionlock@v0.3.0
+  uses: RamazanKara/regionlock@v1.0.0
   with:
     manifests: ./k8s
     regulation: eu-data-residency-v1
@@ -197,13 +197,11 @@ hand it to a DPO without over-claiming.
 
 ## Stability
 
-Regionlock follows [semantic versioning](https://semver.org). It is **pre-1.0**: the CLI
+Regionlock follows [semantic versioning](https://semver.org). As of **1.0.0**, the CLI
 commands/flags, the report JSON schema, the ruleset JSON schema, the rule IDs, and the
-chart values are the intended public API to be **frozen at 1.0.0** — until then they are
-stable in practice but may change with a minor-version bump and a CHANGELOG note (see
-[docs/stability.md](docs/stability.md)). Both policy engines and the CLI are validated
-together in CI (offline via `kyverno apply` + `gator test`, and live in a kind cluster via
-the [e2e workflow](.github/workflows/e2e.yml)).
+chart values are a **stable public API** (see [docs/stability.md](docs/stability.md)). Both
+policy engines and the CLI are validated together in CI (offline via `kyverno apply` +
+`gator test`, and live in a kind cluster via the [e2e workflow](.github/workflows/e2e.yml)).
 
 ## Roadmap
 

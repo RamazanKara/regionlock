@@ -29,8 +29,8 @@ import (
 	"crypto/rand"
 )
 
-// Version is overridable at build time: -ldflags "-X main.Version=v0.3.0".
-var Version = "0.3.0-dev"
+// Version is overridable at build time: -ldflags "-X main.Version=v1.0.0".
+var Version = "1.0.0-dev"
 
 const toolName = "regionlock"
 
@@ -80,8 +80,6 @@ Usage:
 Common flags: --regulation ID (jurisdiction), --cluster-region REGION (single-region
 cluster), --require-egress-policy, --allow-external-name, --allow-external-ips, --config FILE.
 Run "regionlock policies" to list a ruleset's controls, "regionlock <command> -h" for flags.
-
-Run "regionlock <command> -h" for command flags.
 `, Version)
 }
 

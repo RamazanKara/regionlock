@@ -14,12 +14,7 @@ Kyverno JMESPath expressions. These are emitted VERBATIM into the rendered
 manifest for Kyverno to evaluate at admission time. Backtick raw strings keep
 Helm from trying to interpret Kyverno's own {{ }} braces.
 */}}
-{{/* nodeSelector region value, coalescing the well-known key and the deprecated
-     beta key (matches the CLI's recognized region keys). */}}
-{{- define "regionlock.regionExpr" -}}
-{{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" || request.object.spec.nodeSelector."failure-domain.beta.kubernetes.io/region" }}` }}
-{{- end -}}
-
+{{/* Presence test for a nodeSelector region pin (either key), or '' if none. */}}
 {{- define "regionlock.regionExprOrEmpty" -}}
 {{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" || request.object.spec.nodeSelector."failure-domain.beta.kubernetes.io/region" || '' }}` }}
 {{- end -}}

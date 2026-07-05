@@ -257,6 +257,16 @@ func TestStorageClassAwareCMKAndEncryption(t *testing.T) {
 	if f, _ := findingFor(Evaluate(res3, cfg), RuleCMK); f.Status != Fail {
 		t.Fatalf("PVC on a plain StorageClass should fail CMK, got %s", f.Status)
 	}
+
+	// A whitespace-padded parameter KEY is not what CSI drivers read, so it must
+	// NOT be accepted as a CMK (keys match exactly; values are trimmed).
+	res4 := []model.Resource{
+		{Kind: "StorageClass", Name: "spaced", StorageClass: &model.StorageClassSpec{Parameters: map[string]string{" kmsKeyId ": "arn:key/1"}}},
+		{Kind: "PersistentVolumeClaim", Name: "d4", Namespace: "shop", PVC: &model.PVCSpec{StorageClassName: "spaced"}},
+	}
+	if f, _ := findingFor(Evaluate(res4, cfg), RuleCMK); f.Status != Fail {
+		t.Fatalf("a whitespace-padded param key must not count as a CMK, got %s: %s", f.Status, f.Message)
+	}
 }
 
 func TestUnrestrictedCIDR(t *testing.T) {

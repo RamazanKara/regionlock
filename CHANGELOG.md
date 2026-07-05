@@ -6,7 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.3.0] — 2026-07-05
+## [1.0.0] — 2026-07-05
+
+First stable release. The CLI commands/flags, the report and ruleset JSON schemas, the
+rule IDs, and the chart values are now a versioned public API — see
+[docs/stability.md](docs/stability.md). The rule engine and both admission engines (Kyverno
+and OPA/Gatekeeper) are validated together — offline (`kyverno apply` + `gator test`, 17
+shared fixtures) and live in a kind cluster — and were hardened through seven adversarial
+review rounds with every fail-open closed (nodeAffinity AND/OR reachability, OR-escape
+terms, dual region keys, controller coverage, split egress routes, StorageClass encryption).
 
 ### Added
 - **Cluster-region mode** (`clusterRegion` / `--cluster-region`): on a single-region cluster,

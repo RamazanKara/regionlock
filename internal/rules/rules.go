@@ -385,8 +385,11 @@ var cmkParamKeys = map[string]bool{
 }
 
 func scHasCMK(sc model.StorageClassSpec) bool {
+	// Match the parameter KEY exactly (only lower-cased) — CSI drivers read keys
+	// verbatim, so a whitespace-padded key like " kmsKeyId " is NOT recognized by
+	// the driver and must not be treated as a CMK here. The value is trimmed.
 	for k, v := range sc.Parameters {
-		if cmkParamKeys[strings.ToLower(strings.TrimSpace(k))] && strings.TrimSpace(v) != "" {
+		if cmkParamKeys[strings.ToLower(k)] && strings.TrimSpace(v) != "" {
 			return true
 		}
 	}
@@ -398,7 +401,7 @@ func scEncrypted(sc model.StorageClassSpec) bool {
 		return true
 	}
 	for k, v := range sc.Parameters {
-		if strings.EqualFold(strings.TrimSpace(k), "encrypted") && isTrue(v) {
+		if strings.EqualFold(k, "encrypted") && isTrue(v) {
 			return true
 		}
 	}
