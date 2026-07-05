@@ -33,11 +33,11 @@ spec:
             value: ""
       validate:
         message: >-
-          BLOCKED: non-EU region "{{ include "regionlock.regionExpr" . }}" (nodeSelector) violates EU data-residency policy [GDPR Art. 44]
+          BLOCKED: non-EU region on nodeSelector (topology.kubernetes.io/region / failure-domain.beta.kubernetes.io/region) violates EU data-residency policy [GDPR Art. 44]
         deny:
           conditions:
             all:
-              - key: {{ include "regionlock.regionExpr" . | quote }}
+              - key: {{ include "regionlock.regionNodeSelectorValues" . | quote }}
                 operator: AnyNotIn
                 value:
                 {{- toYaml .Values.euRegions | nindent 18 }}

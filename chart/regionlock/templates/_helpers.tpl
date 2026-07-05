@@ -24,6 +24,14 @@ Helm from trying to interpret Kyverno's own {{ }} braces.
 {{ `{{ request.object.spec.nodeSelector."topology.kubernetes.io/region" || request.object.spec.nodeSelector."failure-domain.beta.kubernetes.io/region" || '' }}` }}
 {{- end -}}
 
+{{/* All nodeSelector region values across both keys (nulls dropped). A pod that
+     sets both keys ANDs them, so every value is a placement requirement — this
+     array must be checked (not a scalar coalesce) so a non-EU value on either key
+     is caught. */}}
+{{- define "regionlock.regionNodeSelectorValues" -}}
+{{ `{{ [request.object.spec.nodeSelector."topology.kubernetes.io/region", request.object.spec.nodeSelector."failure-domain.beta.kubernetes.io/region"][?@] }}` }}
+{{- end -}}
+
 {{- define "regionlock.serviceTypeOrEmpty" -}}
 {{ `{{ request.object.spec.type || '' }}` }}
 {{- end -}}

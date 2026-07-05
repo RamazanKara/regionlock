@@ -234,13 +234,18 @@ func extract(doc map[string]any, source string) (model.Resource, bool) {
 func extractPodTemplate(pod map[string]any) *model.PodTemplate {
 	pt := &model.PodTemplate{NodeSelector: strMap(mapAt(pod, "nodeSelector"))}
 
-	// nodeSelector region equality → a concrete singleton; nil means "the
-	// nodeSelector imposes no region constraint" (universe).
+	// nodeSelector region values across every recognized region key. nil means
+	// "the nodeSelector imposes no region constraint" (universe). If both region
+	// keys are set to different values, all are recorded as reachable — a node
+	// carrying a non-EU value satisfies the pin, so the non-EU region must not be
+	// dropped (fail-closed, matching the admission engines).
 	var nsSet map[string]bool
 	for _, key := range regionKeys {
 		if v, ok := pt.NodeSelector[key]; ok && strings.TrimSpace(v) != "" {
-			nsSet = map[string]bool{strings.TrimSpace(v): true}
-			break
+			if nsSet == nil {
+				nsSet = map[string]bool{}
+			}
+			nsSet[strings.TrimSpace(v)] = true
 		}
 	}
 

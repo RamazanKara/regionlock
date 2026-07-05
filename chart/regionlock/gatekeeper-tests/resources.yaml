@@ -1,7 +1,7 @@
 # Test resources for `gator test` (and `kyverno apply`) against the rendered
-# policies. Expected: exactly 16 violations. Region (9): pod-us, pod-aff-us,
+# policies. Expected: exactly 17 violations. Region (10): pod-us, pod-aff-us,
 # pod-none, dep-us, dep-aff-us, cj-us, dep-escape (OR escape), pod-beta-us
-# (legacy label), pod-empty-in (empty In). Egress (5): ext (ExternalName),
+# (legacy label), pod-empty-in (empty In), pod-both-keys (conflicting keys). Egress (5): ext (ExternalName),
 # svc-extip (externalIPs), open-egress (0.0.0.0/0), np-empty-to (allow-all),
 # np-split (/1 split). PVC (2): pvc-bad (cmk + encryption). Clean: pod-eu,
 # pod-aff-eu, dep-eu, pvc-good. CI-exercised.
@@ -134,6 +134,17 @@ kind: Pod
 metadata: { name: pod-beta-us, namespace: shop }
 spec:
   nodeSelector: { failure-domain.beta.kubernetes.io/region: us-east-1 }
+  containers: [{ name: c, image: nginx }]
+---
+# Both region keys set to DIFFERENT values are ANDed — the pod can land on the
+# non-EU (beta) value, so it must be blocked (not passed on the EU topology value).
+apiVersion: v1
+kind: Pod
+metadata: { name: pod-both-keys, namespace: shop }
+spec:
+  nodeSelector:
+    topology.kubernetes.io/region: eu-west-1
+    failure-domain.beta.kubernetes.io/region: us-east-1
   containers: [{ name: c, image: nginx }]
 ---
 # A region In-expression with an EMPTY values list pins nothing → not declared.

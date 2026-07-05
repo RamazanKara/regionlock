@@ -7,7 +7,7 @@
 | Ruleset | `eu-data-residency-v1@1.0.0` — EU Data Residency & Sovereignty Baseline |
 | Jurisdiction | European Union |
 | Source | `testdata/violating` |
-| Generated | 2026-07-05T10:01:23Z |
+| Generated | 2026-07-05T10:13:00Z |
 | Checks | 9 (0 pass / 9 fail / 0 skip) across 8 resources |
 
 ## Control summary
@@ -41,6 +41,6 @@
 
 ## Integrity
 
-- **sha256**: `9f51e1c4bf7019514c596b301683714ce4b7b9de32744f50a179f4d2394d53c6`
+- **sha256**: `495b6febcd77e9b6532ac8a9b2a80350a1163b58a8eccc001b2463c28d412ae1`
 
 > This report evidences technical and organizational placement controls enforced on the cluster. It is not a cryptographic attestation that data never physically left the EEA.

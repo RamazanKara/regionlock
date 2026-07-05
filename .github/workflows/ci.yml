@@ -80,7 +80,7 @@ jobs:
           helm template rl chart/regionlock --set engine=gatekeeper > /tmp/gk.yaml
           n=$(gator test -f /tmp/gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
           echo "gator reported $n violations"
-          test "$n" -eq 16 || { echo "expected 16 violations, got $n"; exit 1; }
+          test "$n" -eq 17 || { echo "expected 17 violations, got $n"; exit 1; }
 
   kyverno:
     runs-on: ubuntu-latest
@@ -96,8 +96,8 @@ jobs:
         run: |
           helm template rl chart/regionlock > /tmp/ky.yaml
           # kyverno apply reuses the same test resources; Kyverno covers controllers
-          # via autogen and reaches the same 16 violations Gatekeeper reaches explicitly.
+          # via autogen and reaches the same 17 violations Gatekeeper reaches explicitly.
           out=$(kyverno apply /tmp/ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml)
           echo "$out" | tail -3
-          echo "$out" | grep -qE "fail: 16" || { echo "expected fail: 16"; exit 1; }
+          echo "$out" | grep -qE "fail: 17" || { echo "expected fail: 17"; exit 1; }
           echo "$out" | grep -E "pod-eu|pvc-good|pod-aff-eu" && { echo "a compliant resource was flagged"; exit 1; } || echo "compliant resources clean"

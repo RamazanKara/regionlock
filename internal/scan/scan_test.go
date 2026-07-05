@@ -312,6 +312,23 @@ func TestLegacyRegionLabelRecognized(t *testing.T) {
 	}
 }
 
+func TestBothRegionKeysAreUnioned(t *testing.T) {
+	// Both region keys set to different values → both are reachable requirements;
+	// the non-EU value must not be dropped.
+	vals, con := podRegions(t, `
+  nodeSelector:
+    topology.kubernetes.io/region: eu-west-1
+    failure-domain.beta.kubernetes.io/region: us-east-1
+  containers: [{ name: c, image: nginx }]`)
+	got := map[string]bool{}
+	for _, v := range vals {
+		got[v] = true
+	}
+	if !con || !got["eu-west-1"] || !got["us-east-1"] {
+		t.Fatalf("both region keys should be recorded, got %v (constrained=%v)", vals, con)
+	}
+}
+
 func TestNetworkPolicyEmptyToIsUnrestricted(t *testing.T) {
 	y := `
 apiVersion: networking.k8s.io/v1
