@@ -19,6 +19,11 @@ All notable changes to this project are documented here. The format follows
   admission enforcement (the chart) and evidence (the CLI) stay in lock-step from one source.
 - **Published JSON Schemas** for the evidence report and the ruleset format under `schemas/`.
   CI validates the sample report and every bundled ruleset against them.
+- **`--format prometheus`**: OpenMetrics exposition (compliance ratio, violations by
+  control/severity, checks, build info) for the node_exporter textfile collector, plus a
+  ready-to-import Grafana dashboard under `dashboards/`.
+- **`--format oscal`**: a NIST OSCAL assessment-results document (deterministic UUIDs) so
+  GRC tooling can ingest per-control pass/fail evidence.
 
 ## [1.0.0] - 2026-07-05
 

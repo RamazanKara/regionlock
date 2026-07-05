@@ -34,7 +34,7 @@ demo: ## full kind + kyverno + enforce demo
 	./demo/run.sh
 
 evidence: build ## regenerate the sample evidence report from the violating fixtures
-	./$(BINARY) report --manifests testdata/violating --format console,html,md,json,pdf,sarif --out docs/sample
+	./$(BINARY) report --manifests testdata/violating --format console,html,md,json,pdf,sarif,prometheus,oscal --out docs/sample
 
 snapshot: ## build a local release snapshot (requires goreleaser)
 	goreleaser release --snapshot --clean

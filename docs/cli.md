@@ -27,7 +27,7 @@ Scan manifests or a live cluster and emit an evidence report.
 |---|---|---|
 | `--manifests DIR` | *(live cluster)* | Directory of manifests to scan; omit to scan the cluster via `kubectl` |
 | `--kubeconfig` / `--context` | ambient | Kubeconfig / context for the live scan |
-| `--format` | `console` | Comma list: `console,json,md,html,pdf,sarif` |
+| `--format` | `console` | Comma list: `console,json,md,html,pdf,sarif,prometheus,oscal` |
 | `--out DIR` | stdout | Directory for file outputs (required for `pdf`/`sarif`) |
 | `--regulation ID` | `eu-data-residency-v1` | Jurisdiction ruleset |
 | `--cluster-region REGION` | — | Declare the cluster's single region (single-region clusters) |

@@ -1,0 +1,23 @@
+# HELP regionlock_up 1 if the evidence report was generated successfully.
+# TYPE regionlock_up gauge
+regionlock_up 1
+# HELP regionlock_compliance_ratio Fraction of checks passing (0-1).
+# TYPE regionlock_compliance_ratio gauge
+regionlock_compliance_ratio{ruleset="eu-data-residency-v1",jurisdiction="European Union"} 0
+# HELP regionlock_checks Checks by status in the latest scan.
+# TYPE regionlock_checks gauge
+regionlock_checks{status="pass"} 0
+regionlock_checks{status="fail"} 9
+regionlock_checks{status="skip"} 0
+# HELP regionlock_violations Failing checks by control and severity in the latest scan.
+# TYPE regionlock_violations gauge
+regionlock_violations{rule="customer-managed-key",severity="medium"} 1
+regionlock_violations{rule="encryption-at-rest",severity="medium"} 1
+regionlock_violations{rule="eu-region-placement",severity="high"} 3
+regionlock_violations{rule="no-non-eu-egress",severity="high"} 4
+# HELP regionlock_resources Distinct resources evaluated in the latest scan.
+# TYPE regionlock_resources gauge
+regionlock_resources 8
+# HELP regionlock_report_build_info Report context; value is always 1.
+# TYPE regionlock_report_build_info gauge
+regionlock_report_build_info{tool="regionlock",version="1.0.0-dev",ruleset="eu-data-residency-v1",ruleset_version="1.0.0",jurisdiction="European Union"} 1

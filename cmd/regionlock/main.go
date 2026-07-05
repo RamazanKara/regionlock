@@ -206,7 +206,7 @@ func runReport(args []string) error {
 	manifests := fs.String("manifests", "", "directory of Kubernetes manifests to scan (default: live cluster via kubectl)")
 	kubeconfig := fs.String("kubeconfig", "", "path to kubeconfig for live scan")
 	kctx := fs.String("context", "", "kubeconfig context for live scan")
-	format := fs.String("format", "console", "comma list: console,json,md,html,pdf,sarif")
+	format := fs.String("format", "console", "comma list: console,json,md,html,pdf,sarif,prometheus,oscal")
 	out := fs.String("out", "", "directory to write file outputs (default: stdout; required for pdf/sarif)")
 	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
 	configPath := fs.String("config", "", "path to a regionlock.yaml config")
@@ -300,6 +300,18 @@ func emit(rep report.Report, format, out string) error {
 				return err
 			}
 			if err := writeOrPrint(out, "regionlock-evidence.sarif", b); err != nil {
+				return err
+			}
+		case "prometheus", "prom":
+			if err := writeOrPrint(out, "regionlock-metrics.prom", rep.Prometheus()); err != nil {
+				return err
+			}
+		case "oscal":
+			b, err := rep.OSCAL()
+			if err != nil {
+				return err
+			}
+			if err := writeOrPrint(out, "regionlock-oscal.json", b); err != nil {
 				return err
 			}
 		default:

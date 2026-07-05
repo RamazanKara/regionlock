@@ -58,3 +58,30 @@ Sign it for tamper-evidence:
 regionlock keygen --out signing.key           # once; store as a secret
 regionlock report --sign-key signing.key --format pdf --out ./evidence
 ```
+
+## Continuous compliance (Prometheus + Grafana)
+
+`--format prometheus` writes an OpenMetrics file for the node_exporter
+[textfile collector](https://github.com/prometheus/node_exporter#textfile-collector).
+Run it on a schedule (CronJob) and write atomically into the collector's directory:
+
+```bash
+regionlock report --format prometheus --out /tmp/rl
+mv /tmp/rl/regionlock-metrics.prom /var/lib/node_exporter/textfile/
+```
+
+Exposed series (all gauges, no timestamps): `regionlock_compliance_ratio` (0-1),
+`regionlock_violations{rule,severity}`, `regionlock_checks{status}`,
+`regionlock_resources`, `regionlock_report_build_info`, `regionlock_up`. Import
+[`dashboards/regionlock-grafana.json`](https://github.com/RamazanKara/regionlock/blob/master/dashboards/regionlock-grafana.json)
+into Grafana to trend the score and violations over time.
+
+## GRC ingestion (OSCAL)
+
+`--format oscal` emits a NIST **OSCAL assessment-results** document, mapping each
+control to a finding (`satisfied` / `not-satisfied`) for GRC tooling. UUIDs are
+derived from the report digest, so re-emitting the same report is byte-identical.
+
+```bash
+regionlock report --manifests ./k8s --format oscal --out ./evidence
+```
