@@ -1,0 +1,8 @@
+# Artifact Hub repository metadata (optional; used to claim publisher ownership).
+# After adding this chart repository on https://artifacthub.io, copy the
+# Repository ID from the control panel into `repositoryID` below so ownership
+# auto-verifies. Docs: https://artifacthub.io/docs/topics/repositories/
+# repositoryID: <paste-from-artifact-hub>
+owners:
+  - name: Ramazan Kara
+    email: github@r-kara.de

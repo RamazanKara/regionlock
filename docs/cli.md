@@ -9,7 +9,8 @@ regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression
 regionlock policies [--regulation ID] [--json | --values]
 regionlock explain  [RULE-ID] [--regulation ID]
 regionlock keygen   [--out FILE]
-regionlock version
+regionlock completion bash|zsh|fish|powershell
+regionlock version  [--json]
 ```
 
 ## Global concepts
@@ -105,6 +106,24 @@ Generate an ed25519 signing key (seed) for signed evidence reports.
 
 ```bash
 regionlock keygen --out signing.key   # writes a hex seed (keep secret) + prints the public key
+```
+
+## `completion`
+
+Print a shell completion script:
+
+```bash
+regionlock completion bash > /etc/bash_completion.d/regionlock
+regionlock completion zsh  > "${fpath[1]}/_regionlock"
+regionlock completion fish > ~/.config/fish/completions/regionlock.fish
+regionlock completion powershell | Out-String | Invoke-Expression
+```
+
+## `version`
+
+```bash
+regionlock version          # regionlock <version>
+regionlock version --json   # {"tool","version","goVersion"} for scripts
 ```
 
 ## Exit codes

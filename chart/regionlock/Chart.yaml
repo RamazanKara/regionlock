@@ -24,3 +24,14 @@ annotations:
   # Kyverno must be installed in the cluster (it is not bundled as a dependency
   # so operators can manage its lifecycle themselves).
   regionlock.io/requires: kyverno>=1.11
+  artifacthub.io/category: security
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/RamazanKara/regionlock
+    - name: documentation
+      url: https://ramazankara.github.io/regionlock/
+  artifacthub.io/maintainers: |
+    - name: Ramazan Kara
+      url: https://github.com/RamazanKara

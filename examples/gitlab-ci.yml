@@ -1,0 +1,16 @@
+# GitLab CI: gate merge requests on data-residency and publish the evidence
+# report as a job artifact. Copy the job into your .gitlab-ci.yml.
+regionlock:
+  image: golang:1.23
+  stage: test
+  script:
+    - go install github.com/RamazanKara/regionlock/cmd/regionlock@latest
+    # Fail the pipeline on high-severity residency violations.
+    - regionlock lint --manifests ./k8s --fail-on high
+    # Always produce an auditor-ready evidence bundle (HTML + JSON + SARIF).
+    - regionlock report --manifests ./k8s --format html,json,sarif --out ./evidence
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - evidence/            # regionlock-evidence.{html,json,sarif}

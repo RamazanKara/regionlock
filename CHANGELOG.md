@@ -29,6 +29,10 @@ All notable changes to this project are documented here. The format follows
   failure becomes `waived` (listed in the report, not counted as a violation, not gating
   in `lint`) until it expires. Fail-closed: an expired waiver never suppresses a violation
   and a malformed waiver is a hard error. Waivers are part of the signed report.
+- **Shell completions** (`regionlock completion bash|zsh|fish|powershell`) and
+  `regionlock version --json` for machine-readable build info.
+- **Distribution**: Artifact Hub chart annotations + `chart/artifacthub-repo.yml`, and a
+  GitLab CI example (`examples/gitlab-ci.yml`).
 
 ## [1.0.0] - 2026-07-05
 

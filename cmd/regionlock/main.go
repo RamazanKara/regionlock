@@ -10,11 +10,13 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -53,8 +55,10 @@ func main() {
 		err = runExplain(os.Args[2:])
 	case "keygen":
 		err = runKeygen(os.Args[2:])
+	case "completion":
+		err = runCompletion(os.Args[2:])
 	case "version", "--version", "-v":
-		fmt.Printf("%s %s\n", toolName, Version)
+		err = runVersion(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -78,7 +82,8 @@ Usage:
   regionlock policies [--regulation ID] [--json | --values]
   regionlock explain  [RULE-ID] [--regulation ID]
   regionlock keygen   [--out FILE]
-  regionlock version
+  regionlock completion bash|zsh|fish|powershell
+  regionlock version  [--json]
 
 Common flags: --regulation ID (jurisdiction), --cluster-region REGION (single-region
 cluster), --require-egress-policy, --allow-external-name, --allow-external-ips, --config FILE.
@@ -612,6 +617,26 @@ func runExplain(args []string) error {
 		fmt.Printf("  • %s: %s\n    %s\n", a.String(), a.Title, a.URL)
 	}
 	fmt.Printf("\nHow to fix:\n  %s\n", rs.Remediation(ruleID))
+	return nil
+}
+
+func runVersion(args []string) error {
+	fs := flag.NewFlagSet("version", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "output version info as JSON")
+	fs.Parse(args)
+	if *asJSON {
+		b, err := json.MarshalIndent(map[string]string{
+			"tool":      toolName,
+			"version":   Version,
+			"goVersion": runtime.Version(),
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
+	}
+	fmt.Printf("%s %s\n", toolName, Version)
 	return nil
 }
 

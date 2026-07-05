@@ -59,7 +59,7 @@ Apache-2.0, Kyverno/OPA-based, with the evidence report as a first-class output.
 | | |
 |---|---|
 | **Enforce** | A Helm chart of tested **Kyverno** *or* **OPA/Gatekeeper** policies that block, at admission, workloads (incl. those from Deployments/CronJobs) not pinned to an in-territory region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName`/`externalIPs` services, and unrestricted-egress NetworkPolicies. Both engines are CI-verified to reach the same decision on a shared fixture set (offline via `kyverno apply` + `gator test`) and live in a kind cluster. |
-| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report in console, Markdown, **HTML**, **PDF**, JSON, or **SARIF**, mapping every check to the specific article it evidences, stamped with a SHA-256 digest and optional ed25519 signature. |
+| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report in console, Markdown, **HTML**, **PDF**, JSON, **SARIF**, **Prometheus**, or **OSCAL**, mapping every check to the specific article it evidences (with remediation), stamped with a SHA-256 digest and optional ed25519 signature. |
 | **Gate** | `regionlock lint` fails a CI build on a residency violation, `regionlock diff` comments the residency delta on a PR, and the [GitHub Action](#github-action) uploads SARIF to the Security tab, so drift is caught in the PR, not the audit. |
 
 ## Install
@@ -223,7 +223,8 @@ policy engines and the CLI are validated together in CI (offline via `kyverno ap
 Shipped: ✅ Kyverno **and** OPA/Gatekeeper engines (controller-aware) · ✅ eight
 jurisdictions (EU/DE/CH/UK/FR/AU/CA/IN) · ✅ PDF + SARIF export · ✅ evidence diff +
 PR-comment Action · ✅ signed releases (cosign + SBOM) · ✅ live kind e2e · ✅ per-control
-remediation + `explain` · ✅ published JSON Schemas for the report and ruleset formats.
+remediation + `explain` · ✅ published JSON Schemas · ✅ Prometheus/Grafana + OSCAL export ·
+✅ time-boxed waivers · ✅ shell completions.
 
 Next:
 
