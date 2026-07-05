@@ -44,27 +44,29 @@ func (a ArticleRef) String() string { return a.Regulation + " " + a.Article }
 
 // FindingOut is a finding enriched with its regulation mapping for output.
 type FindingOut struct {
-	RuleID    string       `json:"ruleId"`
-	RuleName  string       `json:"ruleName"`
-	Severity  string       `json:"severity"`
-	Status    rules.Status `json:"status"`
-	Kind      string       `json:"kind"`
-	Name      string       `json:"name"`
-	Namespace string       `json:"namespace"`
-	Message   string       `json:"message"`
-	Source    string       `json:"source,omitempty"`
-	Articles  []ArticleRef `json:"articles,omitempty"`
+	RuleID      string       `json:"ruleId"`
+	RuleName    string       `json:"ruleName"`
+	Severity    string       `json:"severity"`
+	Status      rules.Status `json:"status"`
+	Kind        string       `json:"kind"`
+	Name        string       `json:"name"`
+	Namespace   string       `json:"namespace"`
+	Message     string       `json:"message"`
+	Source      string       `json:"source,omitempty"`
+	Articles    []ArticleRef `json:"articles,omitempty"`
+	Remediation string       `json:"remediation,omitempty"`
 }
 
 // RuleScore summarizes one rule across all resources.
 type RuleScore struct {
-	RuleID   string       `json:"ruleId"`
-	RuleName string       `json:"ruleName"`
-	Severity string       `json:"severity"`
-	Pass     int          `json:"pass"`
-	Fail     int          `json:"fail"`
-	Skip     int          `json:"skip"`
-	Articles []ArticleRef `json:"articles,omitempty"`
+	RuleID      string       `json:"ruleId"`
+	RuleName    string       `json:"ruleName"`
+	Severity    string       `json:"severity"`
+	Pass        int          `json:"pass"`
+	Fail        int          `json:"fail"`
+	Skip        int          `json:"skip"`
+	Articles    []ArticleRef `json:"articles,omitempty"`
+	Remediation string       `json:"remediation,omitempty"`
 }
 
 // NamespaceScore summarizes one namespace.
@@ -147,11 +149,15 @@ func Build(findings []rules.Finding, rs *regmap.Ruleset, meta Meta) Report {
 		articles := toArticleRefs(rs.Articles(f.RuleID))
 		rm, _ := rs.Rule(f.RuleID)
 
-		rep.Findings = append(rep.Findings, FindingOut{
+		fo := FindingOut{
 			RuleID: f.RuleID, RuleName: rm.Name, Severity: rm.Severity,
 			Status: f.Status, Kind: f.Kind, Name: f.Name, Namespace: f.Namespace,
 			Message: f.Message, Source: f.Source, Articles: articles,
-		})
+		}
+		if f.Status == rules.Fail {
+			fo.Remediation = rs.Remediation(f.RuleID)
+		}
+		rep.Findings = append(rep.Findings, fo)
 
 		ns := nsAgg[f.Namespace]
 		if ns == nil {
@@ -160,7 +166,8 @@ func Build(findings []rules.Finding, rs *regmap.Ruleset, meta Meta) Report {
 		}
 		rc := ruleAgg[f.RuleID]
 		if rc == nil {
-			rc = &RuleScore{RuleID: f.RuleID, RuleName: rm.Name, Severity: rm.Severity, Articles: articles}
+			rc = &RuleScore{RuleID: f.RuleID, RuleName: rm.Name, Severity: rm.Severity,
+				Articles: articles, Remediation: rs.Remediation(f.RuleID)}
 			ruleAgg[f.RuleID] = rc
 		}
 
@@ -287,6 +294,12 @@ func (r Report) Console() string {
 					f.RuleID, f.Kind, f.Name, f.Namespace, f.Message, articleList(f.Articles))
 			}
 		}
+		fmt.Fprintf(&b, "\nHow to fix:\n")
+		for _, rc := range r.RuleScores {
+			if rc.Fail > 0 && rc.Remediation != "" {
+				fmt.Fprintf(&b, "  • %s: %s\n", rc.RuleID, rc.Remediation)
+			}
+		}
 	}
 	fmt.Fprintf(&b, "\nintegrity: %s:%s\n", r.Integrity.Algorithm, short(r.Integrity.Digest))
 	if r.Integrity.Signature != nil {
@@ -332,6 +345,12 @@ func (r Report) Markdown() string {
 					f.RuleID, f.Kind, f.Name, f.Namespace, f.Message, articleList(f.Articles))
 			}
 		}
+		fmt.Fprintf(&b, "\n## How to fix\n\n")
+		for _, rc := range r.RuleScores {
+			if rc.Fail > 0 && rc.Remediation != "" {
+				fmt.Fprintf(&b, "- **%s**: %s\n", rc.RuleID, rc.Remediation)
+			}
+		}
 	}
 
 	fmt.Fprintf(&b, "\n## Integrity\n\n- **%s**: `%s`\n", r.Integrity.Algorithm, r.Integrity.Digest)
@@ -362,7 +381,7 @@ func (r Report) HTML() (string, error) {
 
 func (r Report) disclaimer() string {
 	return "This report evidences technical and organizational placement controls enforced on the cluster. " +
-		"It is not a cryptographic attestation that data never physically left the EEA."
+		"It is not a cryptographic attestation that data never physically left the in-territory region."
 }
 
 func articleList(a []ArticleRef) string {

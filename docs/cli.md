@@ -6,7 +6,8 @@
 regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
 regionlock lint     --manifests DIR [--fail-on any|high]
 regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
-regionlock policies [--regulation ID] [--json]
+regionlock policies [--regulation ID] [--json | --values]
+regionlock explain  [RULE-ID] [--regulation ID]
 regionlock keygen   [--out FILE]
 regionlock version
 ```
@@ -77,6 +78,25 @@ Print a ruleset's controls and their article mapping.
 regionlock policies                          # default (EU) ruleset
 regionlock policies --regulation ch-fadp-v1  # Switzerland
 regionlock policies --json                   # machine-readable
+```
+
+`--values` prints a Helm values fragment (`euRegions`) for the jurisdiction, so admission
+enforcement uses the same regions the CLI evidences:
+
+```bash
+regionlock policies --regulation in-data-residency-v1 --values > in.yaml
+helm upgrade --install regionlock ./chart/regionlock -f in.yaml
+```
+
+## `explain`
+
+Explain a single control: what it checks, the articles it evidences (with source URLs), and
+how to fix a violation. With no rule id, it lists the ruleset's controls.
+
+```bash
+regionlock explain                                              # list controls
+regionlock explain eu-region-placement                          # default (EU)
+regionlock explain customer-managed-key --regulation ch-fadp-v1 # Switzerland
 ```
 
 ## `keygen`

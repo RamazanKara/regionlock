@@ -1,0 +1,63 @@
+{
+  "id": "in-data-residency-v1",
+  "version": "1.0.0",
+  "title": "India Data Residency Baseline (DPDP Act 2023 + RBI)",
+  "jurisdiction": "India",
+  "updated": "2026-07-05",
+  "notes": "Constrains placement to Indian cloud regions. The DPDP Act 2023 uses a negative-list (s 16) model for cross-border transfer, the DPDP Rules 2025 allow localization mandates for Significant Data Fiduciaries, and the RBI requires payment system data to be stored only in India. Pinning workloads to Indian regions is the strictest posture. Evidence of technical/organizational controls, not legal advice.",
+  "regions": [
+    "ap-south-1",
+    "ap-south-2",
+    "centralindia",
+    "southindia",
+    "westindia",
+    "jioindiawest",
+    "jioindiacentral",
+    "asia-south1",
+    "asia-south2"
+  ],
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to an Indian region",
+      "description": "Every workload declares node placement constrained to an allow-listed Indian cloud region (Mumbai/Hyderabad/Pune/Chennai/Delhi) via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "Keeping workloads in India honors the strictest applicable posture: RBI payment-data localization mandates in-India storage, and the DPDP Act s 16 (with the DPDP Rules 2025) governs transfers outside India and localization for Significant Data Fiduciaries.",
+      "articles": [
+        { "regulation": "DPDP Act 2023", "article": "s 16", "title": "Processing of personal data outside India", "url": "https://www.indiacode.nic.in/handle/123456789/22037" },
+        { "regulation": "RBI", "article": "DPSS.CO.OD No.2785/06.08.005/2017-18", "title": "Storage of Payment System Data", "url": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=11244" }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or cross-border egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress.",
+      "severity": "high",
+      "rationale": "Open egress or external-name proxying can move personal or payment data out of India, contrary to RBI localization and the transfer conditions the DPDP Act s 16 permits the government to impose.",
+      "articles": [
+        { "regulation": "DPDP Act 2023", "article": "s 16", "title": "Processing of personal data outside India", "url": "https://www.indiacode.nic.in/handle/123456789/22037" },
+        { "regulation": "RBI", "article": "DPSS.CO.OD No.2785/06.08.005/2017-18", "title": "Storage of Payment System Data", "url": "https://rbi.org.in/scripts/NotificationUser.aspx?Id=11244" }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the Data Fiduciary controls the keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys implement the reasonable security safeguards a Data Fiduciary must take under DPDP Act s 8(5).",
+      "articles": [
+        { "regulation": "DPDP Act 2023", "article": "s 8(5)", "title": "Reasonable security safeguards", "url": "https://www.indiacode.nic.in/handle/123456789/22037" }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is a baseline reasonable security safeguard under DPDP Act s 8(5).",
+      "articles": [
+        { "regulation": "DPDP Act 2023", "article": "s 8(5)", "title": "Reasonable security safeguards", "url": "https://www.indiacode.nic.in/handle/123456789/22037" }
+      ]
+    }
+  ]
+}

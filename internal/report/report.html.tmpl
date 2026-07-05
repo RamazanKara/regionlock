@@ -102,6 +102,14 @@
     </tr>
     {{end}}{{end}}
   </table>
+
+  <h2>How to fix</h2>
+  <table>
+    <tr><th>Control</th><th>Remediation</th></tr>
+    {{range .RuleScores}}{{if gt .Fail 0}}
+    <tr><td class="mono">{{.RuleID}}</td><td>{{.Remediation}}</td></tr>
+    {{end}}{{end}}
+  </table>
   {{end}}
 
   <h2>Namespaces</h2>

@@ -13,6 +13,7 @@ version:
 | **Report JSON** (`--format json`) | Field names and structure are stable and additive within a MAJOR. Consumers should ignore unknown fields. |
 | **SARIF output** | Conforms to SARIF 2.1.0. |
 | **Ruleset JSON schema** (`internal/regmap/data/*.json`) | The shape (`id`, `version`, `regions`, `rules[].{rule_id,severity,articles}`) is stable. |
+| **Published JSON Schemas** | [`schemas/report.schema.json`](https://github.com/RamazanKara/regionlock/blob/master/schemas/report.schema.json) and [`schemas/ruleset.schema.json`](https://github.com/RamazanKara/regionlock/blob/master/schemas/ruleset.schema.json) formalize the two formats above. CI validates the sample report and every bundled ruleset against them. |
 | **Rule IDs** | `eu-region-placement`, `no-non-eu-egress`, `customer-managed-key`, `encryption-at-rest` are stable identifiers, shared by the CLI, rulesets, and both policy engines. |
 | **Chart values** | `values.yaml` keys are stable and additive within a MAJOR. |
 | **Integrity** | The report digest is SHA-256 over the canonical JSON with the integrity field zeroed; signatures are ed25519 over that digest. |

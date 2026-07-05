@@ -7,7 +7,7 @@
 | Ruleset | `eu-data-residency-v1@1.0.0`, EU Data Residency & Sovereignty Baseline |
 | Jurisdiction | European Union |
 | Source | `testdata/violating` |
-| Generated | 2026-07-05T11:58:14Z |
+| Generated | 2026-07-05T15:23:26Z |
 | Checks | 9 (0 pass / 9 fail / 0 skip) across 8 resources |
 
 ## Control summary
@@ -39,8 +39,15 @@
 | no-non-eu-egress | `Service/legacy-billing` | shop | Service exposes externalIPs 198.51.100.7 (destination not verifiable as EU) | GDPR Art. 44, GDPR Art. 46 |
 | no-non-eu-egress | `NetworkPolicy/unrestricted-egress` | shop | permits egress to any destination (egress rule with no peer selector) | GDPR Art. 44, GDPR Art. 46 |
 
+## How to fix
+
+- **customer-managed-key**: Use a customer-managed key: annotate the PVC with regionlock.io/cmk-key-id=<kms-key-id>, or use a StorageClass whose parameters set a CMK (kmsKeyId, diskEncryptionSetID, or disk-encryption-kms-key).
+- **encryption-at-rest**: Declare encryption at rest: label the PVC regionlock.io/encrypted="true", or use an approved encrypted StorageClass listed in approvedStorageClasses.
+- **eu-region-placement**: Pin the workload to an in-territory region: set topology.kubernetes.io/region (via nodeSelector, or a required nodeAffinity In term on EVERY term) to one of the ruleset's allow-listed regions. On a single-region cluster, set clusterRegion instead of labelling every workload.
+- **no-non-eu-egress**: Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs.
+
 ## Integrity
 
-- **sha256**: `e26ed7616a3e664d545d041b2df8852d6bf229b8654f641788f588a97aa80cd5`
+- **sha256**: `b667c98e88bae9a0d8b7daaef5690979d36d476defc462780b41d98c8faac441`
 
-> This report evidences technical and organizational placement controls enforced on the cluster. It is not a cryptographic attestation that data never physically left the EEA.
+> This report evidences technical and organizational placement controls enforced on the cluster. It is not a cryptographic attestation that data never physically left the in-territory region.

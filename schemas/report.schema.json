@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ramazankara.github.io/regionlock/schemas/report.schema.json",
+  "title": "Regionlock evidence report",
+  "description": "The JSON evidence report emitted by `regionlock report --format json`. Tamper-evident via a SHA-256 digest over the canonical JSON with the integrity field zeroed, plus an optional ed25519 signature.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tool", "version", "generatedAt", "source", "ruleset", "summary", "ruleScores", "namespaces", "findings", "integrity"],
+  "properties": {
+    "tool": { "type": "string" },
+    "version": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "source": { "type": "string" },
+    "ruleset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "title", "jurisdiction", "updated"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "jurisdiction": { "type": "string" },
+        "updated": { "type": "string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resources", "checks", "pass", "fail", "skip", "score", "compliant"],
+      "properties": {
+        "resources": { "type": "integer", "minimum": 0 },
+        "checks": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "skip": { "type": "integer", "minimum": 0 },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "compliant": { "type": "boolean" }
+      }
+    },
+    "ruleScores": { "type": ["array", "null"], "items": { "$ref": "#/$defs/ruleScore" } },
+    "namespaces": { "type": ["array", "null"], "items": { "$ref": "#/$defs/namespaceScore" } },
+    "findings": { "type": ["array", "null"], "items": { "$ref": "#/$defs/finding" } },
+    "integrity": { "$ref": "#/$defs/integrity" }
+  },
+  "$defs": {
+    "article": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["regulation", "article"],
+      "properties": {
+        "regulation": { "type": "string" },
+        "article": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "ruleScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "ruleName", "severity", "pass", "fail", "skip"],
+      "properties": {
+        "ruleId": { "type": "string" },
+        "ruleName": { "type": "string" },
+        "severity": { "type": "string" },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "skip": { "type": "integer", "minimum": 0 },
+        "articles": { "type": ["array", "null"], "items": { "$ref": "#/$defs/article" } },
+        "remediation": { "type": "string" }
+      }
+    },
+    "namespaceScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "pass", "fail", "skip", "score"],
+      "properties": {
+        "namespace": { "type": "string" },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "skip": { "type": "integer", "minimum": 0 },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "ruleName", "severity", "status", "kind", "name", "namespace", "message"],
+      "properties": {
+        "ruleId": { "type": "string" },
+        "ruleName": { "type": "string" },
+        "severity": { "type": "string" },
+        "status": { "type": "string", "enum": ["pass", "fail", "skip", "waived"] },
+        "kind": { "type": "string" },
+        "name": { "type": "string" },
+        "namespace": { "type": "string" },
+        "message": { "type": "string" },
+        "source": { "type": "string" },
+        "articles": { "type": ["array", "null"], "items": { "$ref": "#/$defs/article" } },
+        "remediation": { "type": "string" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "digest"],
+      "properties": {
+        "algorithm": { "type": "string" },
+        "digest": { "type": "string" },
+        "signature": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "value", "publicKey"],
+          "properties": {
+            "algorithm": { "type": "string" },
+            "value": { "type": "string" },
+            "publicKey": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

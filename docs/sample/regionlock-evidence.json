@@ -1,7 +1,7 @@
 {
   "tool": "regionlock",
   "version": "1.0.0-dev",
-  "generatedAt": "2026-07-05T11:58:14Z",
+  "generatedAt": "2026-07-05T15:23:26Z",
   "source": "testdata/violating",
   "ruleset": {
     "id": "eu-data-residency-v1",
@@ -34,7 +34,8 @@
           "title": "Security of processing",
           "url": "https://gdpr-info.eu/art-32-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Use a customer-managed key: annotate the PVC with regionlock.io/cmk-key-id=\u003ckms-key-id\u003e, or use a StorageClass whose parameters set a CMK (kmsKeyId, diskEncryptionSetID, or disk-encryption-kms-key)."
     },
     {
       "ruleId": "encryption-at-rest",
@@ -50,7 +51,8 @@
           "title": "Security of processing",
           "url": "https://gdpr-info.eu/art-32-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Declare encryption at rest: label the PVC regionlock.io/encrypted=\"true\", or use an approved encrypted StorageClass listed in approvedStorageClasses."
     },
     {
       "ruleId": "eu-region-placement",
@@ -78,7 +80,8 @@
           "title": "International governmental access and transfer of non-personal data",
           "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
         }
-      ]
+      ],
+      "remediation": "Pin the workload to an in-territory region: set topology.kubernetes.io/region (via nodeSelector, or a required nodeAffinity In term on EVERY term) to one of the ruleset's allow-listed regions. On a single-region cluster, set clusterRegion instead of labelling every workload."
     },
     {
       "ruleId": "no-non-eu-egress",
@@ -100,7 +103,8 @@
           "title": "Transfers subject to appropriate safeguards",
           "url": "https://gdpr-info.eu/art-46-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs."
     }
   ],
   "namespaces": [
@@ -130,7 +134,8 @@
           "title": "Security of processing",
           "url": "https://gdpr-info.eu/art-32-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Use a customer-managed key: annotate the PVC with regionlock.io/cmk-key-id=\u003ckms-key-id\u003e, or use a StorageClass whose parameters set a CMK (kmsKeyId, diskEncryptionSetID, or disk-encryption-kms-key)."
     },
     {
       "ruleId": "encryption-at-rest",
@@ -149,7 +154,8 @@
           "title": "Security of processing",
           "url": "https://gdpr-info.eu/art-32-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Declare encryption at rest: label the PVC regionlock.io/encrypted=\"true\", or use an approved encrypted StorageClass listed in approvedStorageClasses."
     },
     {
       "ruleId": "eu-region-placement",
@@ -180,7 +186,8 @@
           "title": "International governmental access and transfer of non-personal data",
           "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
         }
-      ]
+      ],
+      "remediation": "Pin the workload to an in-territory region: set topology.kubernetes.io/region (via nodeSelector, or a required nodeAffinity In term on EVERY term) to one of the ruleset's allow-listed regions. On a single-region cluster, set clusterRegion instead of labelling every workload."
     },
     {
       "ruleId": "eu-region-placement",
@@ -211,7 +218,8 @@
           "title": "International governmental access and transfer of non-personal data",
           "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
         }
-      ]
+      ],
+      "remediation": "Pin the workload to an in-territory region: set topology.kubernetes.io/region (via nodeSelector, or a required nodeAffinity In term on EVERY term) to one of the ruleset's allow-listed regions. On a single-region cluster, set clusterRegion instead of labelling every workload."
     },
     {
       "ruleId": "eu-region-placement",
@@ -242,7 +250,8 @@
           "title": "International governmental access and transfer of non-personal data",
           "url": "https://eur-lex.europa.eu/eli/reg/2023/2854/oj"
         }
-      ]
+      ],
+      "remediation": "Pin the workload to an in-territory region: set topology.kubernetes.io/region (via nodeSelector, or a required nodeAffinity In term on EVERY term) to one of the ruleset's allow-listed regions. On a single-region cluster, set clusterRegion instead of labelling every workload."
     },
     {
       "ruleId": "no-non-eu-egress",
@@ -267,7 +276,8 @@
           "title": "Transfers subject to appropriate safeguards",
           "url": "https://gdpr-info.eu/art-46-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs."
     },
     {
       "ruleId": "no-non-eu-egress",
@@ -292,7 +302,8 @@
           "title": "Transfers subject to appropriate safeguards",
           "url": "https://gdpr-info.eu/art-46-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs."
     },
     {
       "ruleId": "no-non-eu-egress",
@@ -317,7 +328,8 @@
           "title": "Transfers subject to appropriate safeguards",
           "url": "https://gdpr-info.eu/art-46-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs."
     },
     {
       "ruleId": "no-non-eu-egress",
@@ -342,11 +354,12 @@
           "title": "Transfers subject to appropriate safeguards",
           "url": "https://gdpr-info.eu/art-46-gdpr/"
         }
-      ]
+      ],
+      "remediation": "Keep traffic in-territory: drop Service type=ExternalName and spec.externalIPs, and replace unrestricted NetworkPolicy egress (0.0.0.0/0, ::/0, or 0.0.0.0/1 + 128.0.0.0/1 splits) with explicit in-territory CIDRs."
     }
   ],
   "integrity": {
     "algorithm": "sha256",
-    "digest": "e26ed7616a3e664d545d041b2df8852d6bf229b8654f641788f588a97aa80cd5"
+    "digest": "b667c98e88bae9a0d8b7daaef5690979d36d476defc462780b41d98c8faac441"
   }
 }

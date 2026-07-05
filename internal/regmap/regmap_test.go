@@ -19,8 +19,8 @@ var validSeverity = map[string]bool{"high": true, "medium": true, "low": true}
 
 func TestAllBundledRulesetsAreWellFormed(t *testing.T) {
 	ids := Available()
-	if len(ids) < 5 {
-		t.Fatalf("expected at least 5 bundled rulesets, got %d: %v", len(ids), ids)
+	if len(ids) < 8 {
+		t.Fatalf("expected at least 8 bundled rulesets, got %d: %v", len(ids), ids)
 	}
 	for _, id := range ids {
 		rs, err := Load(id)
@@ -61,6 +61,9 @@ func TestAllBundledRulesetsAreWellFormed(t *testing.T) {
 				if a.Regulation == "" || a.Article == "" {
 					t.Errorf("%s/%s: article missing regulation or number: %+v", id, r.RuleID, a)
 				}
+			}
+			if rs.Remediation(r.RuleID) == "" {
+				t.Errorf("%s/%s: no remediation guidance (ruleset override or engine default)", id, r.RuleID)
 			}
 		}
 		// Every ruleset must cover all four engine controls.

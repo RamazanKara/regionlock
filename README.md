@@ -140,9 +140,21 @@ Select one with `--regulation <id>` (CLI) or the matching region allow-list (cha
 | `ch-fadp-v1` | Switzerland | revFADP / nDSG |
 | `uk-data-residency-v1` | United Kingdom | UK GDPR + DPA 2018 |
 | `fr-data-residency-v1` | France | GDPR + Loi Informatique et Libertés |
+| `au-data-residency-v1` | Australia | Privacy Act 1988 (APP 8, s 16C) |
+| `ca-data-residency-v1` | Canada | PIPEDA + BC FOIPPA + Quebec Law 25 |
+| `in-data-residency-v1` | India | DPDP Act 2023 + RBI localization |
 
 Each ships its own in-territory region list. Adding another jurisdiction is one JSON file;
-see [docs/regulations.md](docs/regulations.md).
+see [docs/regulations.md](docs/regulations.md). To keep admission enforcement in lock-step
+with what the CLI evidences, generate the chart's region allow-list straight from a ruleset:
+
+```bash
+regionlock policies --regulation au-data-residency-v1 --values > au.yaml
+helm upgrade --install regionlock ./chart/regionlock -f au.yaml
+```
+
+`regionlock explain <control>` prints what a control checks, the articles it evidences, and
+how to fix a violation; the same remediation shows up on every failing check in the report.
 
 ## GitHub Action
 
@@ -208,13 +220,14 @@ policy engines and the CLI are validated together in CI (offline via `kyverno ap
 
 ## Roadmap
 
-Shipped: ✅ Kyverno **and** OPA/Gatekeeper engines (controller-aware) · ✅ five
-jurisdictions (EU/DE/CH/UK/FR) · ✅ PDF + SARIF export · ✅ evidence diff + PR-comment
-Action · ✅ signed releases (cosign + SBOM) · ✅ live kind e2e.
+Shipped: ✅ Kyverno **and** OPA/Gatekeeper engines (controller-aware) · ✅ eight
+jurisdictions (EU/DE/CH/UK/FR/AU/CA/IN) · ✅ PDF + SARIF export · ✅ evidence diff +
+PR-comment Action · ✅ signed releases (cosign + SBOM) · ✅ live kind e2e · ✅ per-control
+remediation + `explain` · ✅ published JSON Schemas for the report and ruleset formats.
 
 Next:
 
-- More jurisdictions as community PRs (`us-hipaa`, `eu-health-data-space`, `ca`, `au`)
+- More jurisdictions as community PRs (`us-hipaa`, `eu-health-data-space`, `jp`, `br`)
 - Live-cluster continuous evidence (scheduled report → object storage)
 - CNCF Sandbox submission
 

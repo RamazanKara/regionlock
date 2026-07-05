@@ -49,6 +49,8 @@ func main() {
 		err = runDiff(os.Args[2:])
 	case "policies":
 		err = runPolicies(os.Args[2:])
+	case "explain":
+		err = runExplain(os.Args[2:])
 	case "keygen":
 		err = runKeygen(os.Args[2:])
 	case "version", "--version", "-v":
@@ -73,7 +75,8 @@ Usage:
   regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
   regionlock lint     --manifests DIR [--fail-on any|high]
   regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
-  regionlock policies [--regulation ID] [--json]
+  regionlock policies [--regulation ID] [--json | --values]
+  regionlock explain  [RULE-ID] [--regulation ID]
   regionlock keygen   [--out FILE]
   regionlock version
 
@@ -440,11 +443,15 @@ func runPolicies(args []string) error {
 	fs := flag.NewFlagSet("policies", flag.ExitOnError)
 	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
 	asJSON := fs.Bool("json", false, "output the ruleset as JSON")
+	asValues := fs.Bool("values", false, "output Helm chart values (euRegions) so admission enforces this jurisdiction")
 	fs.Parse(args)
 
 	rs, err := regmap.Load(*regulation)
 	if err != nil {
 		return err
+	}
+	if *asValues {
+		return printHelmValues(rs)
 	}
 	if *asJSON {
 		b, err := yaml.Marshal(rs) // yaml is fine for a human dump; keep deps minimal
@@ -468,6 +475,65 @@ func runPolicies(args []string) error {
 			r.RuleID, r.Severity, r.Description, strings.Join(arts, ", "))
 	}
 	fmt.Printf("available rulesets: %s\n", strings.Join(regmap.Available(), ", "))
+	return nil
+}
+
+// printHelmValues emits a Helm values fragment pinning the chart's region
+// allow-list to the selected jurisdiction, so admission enforcement (the chart)
+// and evidence (the CLI) use the same regions from a single source: the ruleset.
+func printHelmValues(rs *regmap.Ruleset) error {
+	fmt.Printf("# Regionlock chart values for %s (%s), generated from the ruleset.\n", rs.ID, rs.Jurisdiction)
+	fmt.Printf("# Keeps admission enforcement in lock-step with:\n")
+	fmt.Printf("#   regionlock report --regulation %s\n", rs.ID)
+	fmt.Printf("# Apply with: helm upgrade --install regionlock <chart> -f <this-file>\n")
+	fmt.Println("euRegions:")
+	for _, r := range rs.Regions {
+		fmt.Printf("  - %s\n", r)
+	}
+	return nil
+}
+
+func runExplain(args []string) error {
+	fs := flag.NewFlagSet("explain", flag.ExitOnError)
+	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
+	// Interleave parsing so flags may appear before or after the positional
+	// rule-id (stdlib flag otherwise stops at the first positional).
+	var rest []string
+	fs.Parse(args)
+	for len(fs.Args()) > 0 {
+		rest = append(rest, fs.Args()[0])
+		fs.Parse(fs.Args()[1:])
+	}
+
+	rs, err := regmap.Load(*regulation)
+	if err != nil {
+		return err
+	}
+	if len(rest) == 0 {
+		fmt.Printf("Controls in %s@%s (%s). Run \"regionlock explain <rule-id>\" for detail:\n\n",
+			rs.ID, rs.Version, rs.Jurisdiction)
+		for _, r := range rs.Rules {
+			fmt.Printf("  %-24s %s\n", r.RuleID, r.Name)
+		}
+		return nil
+	}
+	ruleID := rest[0]
+	rm, ok := rs.Rule(ruleID)
+	if !ok {
+		ids := make([]string, 0, len(rs.Rules))
+		for _, r := range rs.Rules {
+			ids = append(ids, r.RuleID)
+		}
+		return fmt.Errorf("unknown rule %q in %s (rules: %s)", ruleID, rs.ID, strings.Join(ids, ", "))
+	}
+	fmt.Printf("%s  [%s severity]\n%s\n\n", rm.RuleID, rm.Severity, rm.Name)
+	fmt.Printf("What it checks:\n  %s\n\n", rm.Description)
+	fmt.Printf("Why it matters:\n  %s\n\n", rm.Rationale)
+	fmt.Printf("Evidences (%s@%s, %s):\n", rs.ID, rs.Version, rs.Jurisdiction)
+	for _, a := range rm.Articles {
+		fmt.Printf("  • %s: %s\n    %s\n", a.String(), a.Title, a.URL)
+	}
+	fmt.Printf("\nHow to fix:\n  %s\n", rs.Remediation(ruleID))
 	return nil
 }
 

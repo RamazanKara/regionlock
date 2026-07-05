@@ -26,6 +26,15 @@ var ukDataResidencyV1 []byte
 //go:embed data/fr-data-residency-v1.json
 var frDataResidencyV1 []byte
 
+//go:embed data/au-data-residency-v1.json
+var auDataResidencyV1 []byte
+
+//go:embed data/ca-data-residency-v1.json
+var caDataResidencyV1 []byte
+
+//go:embed data/in-data-residency-v1.json
+var inDataResidencyV1 []byte
+
 // rulesets is the registry of bundled rulesets, keyed by id.
 var rulesets = map[string][]byte{
 	"eu-data-residency-v1": euDataResidencyV1,
@@ -33,6 +42,9 @@ var rulesets = map[string][]byte{
 	"ch-fadp-v1":           chFADPV1,
 	"uk-data-residency-v1": ukDataResidencyV1,
 	"fr-data-residency-v1": frDataResidencyV1,
+	"au-data-residency-v1": auDataResidencyV1,
+	"ca-data-residency-v1": caDataResidencyV1,
+	"in-data-residency-v1": inDataResidencyV1,
 }
 
 // DefaultRuleset is the ruleset used when none is specified.
@@ -57,6 +69,11 @@ type RuleMapping struct {
 	Severity    string    `json:"severity"`
 	Rationale   string    `json:"rationale"`
 	Articles    []Article `json:"articles"`
+	// Remediation optionally overrides the engine-default fix guidance for this
+	// rule. Remediation is about the Kubernetes control (how to make a workload
+	// compliant), so it is jurisdiction-independent; leave it empty to use the
+	// default from Remediation().
+	Remediation string `json:"remediation,omitempty"`
 }
 
 // Ruleset is a versioned collection of rule-to-regulation mappings.

@@ -1,0 +1,59 @@
+{
+  "id": "ca-data-residency-v1",
+  "version": "1.0.0",
+  "title": "Canada Data Residency Baseline (PIPEDA + provincial)",
+  "jurisdiction": "Canada",
+  "updated": "2026-07-05",
+  "notes": "Constrains placement to Canadian cloud regions. PIPEDA uses an organization-to-organization accountability model (Principle 4.1.3) rather than an adequacy model, and provincial regimes (BC FOIPPA, Quebec Law 25) require a privacy impact assessment before storing or disclosing personal information outside the province/country. Evidence of technical/organizational controls, not legal advice.",
+  "regions": [
+    "ca-central-1",
+    "ca-west-1",
+    "canadacentral",
+    "canadaeast",
+    "northamerica-northeast1",
+    "northamerica-northeast2"
+  ],
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to a Canadian region",
+      "description": "Every workload declares node placement constrained to an allow-listed Canadian cloud region (Montreal/Toronto/Calgary/Quebec) via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "Keeping workloads in Canada avoids a cross-border transfer for which PIPEDA Principle 4.1.3 keeps the organization accountable and which Quebec Law 25 subjects to a mandatory pre-transfer assessment.",
+      "articles": [
+        { "regulation": "PIPEDA", "article": "Principle 4.1.3", "title": "Accountability for transferred personal information", "url": "https://laws-lois.justice.gc.ca/eng/acts/p-8.6/page-7.html" },
+        { "regulation": "Quebec Law 25", "article": "s 17", "title": "Assessment before disclosing personal information outside Quebec", "url": "https://www.legisquebec.gouv.qc.ca/en/document/cs/p-39.1" }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or cross-border egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress.",
+      "severity": "high",
+      "rationale": "Open egress or external-name proxying can transfer personal information outside Canada, keeping the organization accountable under PIPEDA Principle 4.1.3 without a comparable-protection safeguard.",
+      "articles": [
+        { "regulation": "PIPEDA", "article": "Principle 4.1.3", "title": "Accountability for transferred personal information", "url": "https://laws-lois.justice.gc.ca/eng/acts/p-8.6/page-7.html" }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the organization controls the keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys are a security safeguard proportional to the sensitivity of the information under PIPEDA Principle 4.7.",
+      "articles": [
+        { "regulation": "PIPEDA", "article": "Principle 4.7", "title": "Safeguards", "url": "https://laws-lois.justice.gc.ca/eng/acts/p-8.6/page-7.html" }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is a baseline safeguard against loss, theft and unauthorized access under PIPEDA Principle 4.7.",
+      "articles": [
+        { "regulation": "PIPEDA", "article": "Principle 4.7", "title": "Safeguards", "url": "https://laws-lois.justice.gc.ca/eng/acts/p-8.6/page-7.html" }
+      ]
+    }
+  ]
+}

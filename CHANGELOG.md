@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Three more jurisdictions**: `au-data-residency-v1` (Australia, Privacy Act 1988 APP 8 /
+  s 16C), `ca-data-residency-v1` (Canada, PIPEDA + BC FOIPPA + Quebec Law 25), and
+  `in-data-residency-v1` (India, DPDP Act 2023 s 16 + RBI localization). Eight bundled
+  jurisdictions in total, each with its own in-territory cloud-region allow-list.
+- **`regionlock explain <control>`**: prints what a control checks, the articles it evidences
+  (with source URLs), and concrete remediation. With no argument it lists the controls.
+- **Per-control remediation** on every failing check, in the console, Markdown, HTML and JSON
+  reports (a new `remediation` field), plus a de-duplicated "How to fix" section.
+- **`regionlock policies --values`**: emits a Helm `euRegions` fragment for a jurisdiction so
+  admission enforcement (the chart) and evidence (the CLI) stay in lock-step from one source.
+- **Published JSON Schemas** for the evidence report and the ruleset format under `schemas/`.
+  CI validates the sample report and every bundled ruleset against them.
+
 ## [1.0.0] - 2026-07-05
 
 First stable release. The CLI commands/flags, the report and ruleset JSON schemas, the

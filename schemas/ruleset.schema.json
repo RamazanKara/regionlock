@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RamazanKara/regionlock/master/schemas/ruleset.schema.json",
+  "title": "Regionlock regulation ruleset",
+  "description": "A versioned mapping from Regionlock's four enforcement controls to the legal provisions they evidence, plus the jurisdiction's in-territory cloud regions. See internal/regmap/data/*.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "title", "jurisdiction", "updated", "regions", "rules"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "title": { "type": "string", "minLength": 1 },
+    "jurisdiction": { "type": "string", "minLength": 1 },
+    "updated": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "notes": { "type": "string" },
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "name", "description", "severity", "rationale", "articles"],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "enum": ["eu-region-placement", "no-non-eu-egress", "customer-managed-key", "encryption-at-rest"],
+          "description": "One of the four engine rule IDs. Every ruleset must map all four."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["high", "medium", "low"] },
+        "rationale": { "type": "string", "minLength": 1 },
+        "remediation": { "type": "string", "description": "Optional override of the engine-default fix guidance." },
+        "articles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/article" }
+        }
+      }
+    },
+    "article": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["regulation", "article", "title", "url"],
+      "properties": {
+        "regulation": { "type": "string", "minLength": 1 },
+        "article": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    }
+  }
+}

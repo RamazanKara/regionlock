@@ -1,0 +1,61 @@
+{
+  "id": "au-data-residency-v1",
+  "version": "1.0.0",
+  "title": "Australia Data Residency Baseline (Privacy Act 1988 / APPs)",
+  "jurisdiction": "Australia",
+  "updated": "2026-07-05",
+  "notes": "Constrains placement to Australian cloud regions and evidences the Australian Privacy Principles (Schedule 1 of the Privacy Act 1988 (Cth)). APP 8 governs cross-border disclosure and s 16C makes the disclosing entity accountable for an overseas recipient's acts. Evidence of technical/organizational controls, not legal advice or a cryptographic data-path proof.",
+  "regions": [
+    "ap-southeast-2",
+    "ap-southeast-4",
+    "australiaeast",
+    "australiasoutheast",
+    "australiacentral",
+    "australiacentral2",
+    "australia-southeast1",
+    "australia-southeast2"
+  ],
+  "rules": [
+    {
+      "rule_id": "eu-region-placement",
+      "name": "Workloads pinned to an Australian region",
+      "description": "Every workload declares node placement constrained to an allow-listed Australian cloud region (Sydney/Melbourne/Canberra) via topology.kubernetes.io/region.",
+      "severity": "high",
+      "rationale": "Scheduling workloads outside Australia is a cross-border disclosure of personal information; under APP 8.1 the entity must ensure the overseas recipient does not breach the APPs, and under s 16C remains accountable for the recipient's acts.",
+      "articles": [
+        { "regulation": "Privacy Act 1988", "article": "APP 8", "title": "Cross-border disclosure of personal information", "url": "https://www.oaic.gov.au/privacy/australian-privacy-principles/australian-privacy-principles-guidelines/chapter-8-app-8-cross-border-disclosure-of-personal-information" },
+        { "regulation": "Privacy Act 1988", "article": "s 16C", "title": "Accountability for cross-border disclosures", "url": "https://www.legislation.gov.au/C2004A03712/latest/text" }
+      ]
+    },
+    {
+      "rule_id": "no-non-eu-egress",
+      "name": "No unrestricted or cross-border egress",
+      "description": "Services do not proxy to external endpoints (ExternalName) and NetworkPolicies do not permit unrestricted (0.0.0.0/0, ::/0) egress.",
+      "severity": "high",
+      "rationale": "Open egress or external-name proxying can disclose personal information to an overseas recipient without the reasonable steps APP 8.1 requires.",
+      "articles": [
+        { "regulation": "Privacy Act 1988", "article": "APP 8", "title": "Cross-border disclosure of personal information", "url": "https://www.oaic.gov.au/privacy/australian-privacy-principles/australian-privacy-principles-guidelines/chapter-8-app-8-cross-border-disclosure-of-personal-information" }
+      ]
+    },
+    {
+      "rule_id": "customer-managed-key",
+      "name": "Storage uses customer-managed keys",
+      "description": "PersistentVolumeClaims reference a customer-managed key (CMK) so the entity controls the keys.",
+      "severity": "medium",
+      "rationale": "Customer-managed keys are a reasonable step to protect personal information from misuse and unauthorised access under APP 11.",
+      "articles": [
+        { "regulation": "Privacy Act 1988", "article": "APP 11", "title": "Security of personal information", "url": "https://www.oaic.gov.au/privacy/australian-privacy-principles/australian-privacy-principles-guidelines/chapter-11-app-11-security-of-personal-information" }
+      ]
+    },
+    {
+      "rule_id": "encryption-at-rest",
+      "name": "Encryption at rest declared",
+      "description": "PersistentVolumeClaims declare encryption at rest via the configured label/annotation.",
+      "severity": "medium",
+      "rationale": "Encryption at rest is a baseline reasonable step to secure personal information under APP 11.",
+      "articles": [
+        { "regulation": "Privacy Act 1988", "article": "APP 11", "title": "Security of personal information", "url": "https://www.oaic.gov.au/privacy/australian-privacy-principles/australian-privacy-principles-guidelines/chapter-11-app-11-security-of-personal-information" }
+      ]
+    }
+  ]
+}
