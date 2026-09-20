@@ -74,7 +74,13 @@ func sortEntries(e []DiffEntry) {
 		if e[i].RuleID != e[j].RuleID {
 			return e[i].RuleID < e[j].RuleID
 		}
-		return e[i].Name < e[j].Name
+		if e[i].Name != e[j].Name {
+			return e[i].Name < e[j].Name
+		}
+		if e[i].Namespace != e[j].Namespace {
+			return e[i].Namespace < e[j].Namespace
+		}
+		return e[i].Kind < e[j].Kind
 	})
 }
 
