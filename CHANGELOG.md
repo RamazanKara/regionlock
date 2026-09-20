@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Keep report diff ordering deterministic when identically named resources
+  appear in different namespaces or have different Kubernetes kinds.
+
 ## [1.1.0] - 2026-07-05
 
 ### Added
