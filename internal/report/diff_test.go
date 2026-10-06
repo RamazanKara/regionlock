@@ -1,12 +1,29 @@
 package report
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/RamazanKara/regionlock/internal/regmap"
 	"github.com/RamazanKara/regionlock/internal/rules"
 )
+
+func TestDiffEntriesSortByResourceIdentity(t *testing.T) {
+	// Identically named resources in different namespaces or of different kinds
+	// must not inherit map iteration order in JSON, Markdown, and console diffs.
+	want := []DiffEntry{
+		{RuleID: rules.RuleEURegion, Name: "api", Namespace: "a", Kind: "Deployment"},
+		{RuleID: rules.RuleEURegion, Name: "api", Namespace: "a", Kind: "Pod"},
+		{RuleID: rules.RuleEURegion, Name: "api", Namespace: "b", Kind: "Deployment"},
+		{RuleID: rules.RuleEURegion, Name: "api", Namespace: "b", Kind: "Pod"},
+	}
+	got := []DiffEntry{want[3], want[2], want[1], want[0]}
+	sortEntries(got)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unstable resource ordering: got %+v, want %+v", got, want)
+	}
+}
 
 func reportFrom(t *testing.T, findings []rules.Finding) Report {
 	t.Helper()
