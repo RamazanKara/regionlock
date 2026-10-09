@@ -6,9 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Planned patch release: 1.1.1.
+
+### Security
+- Require Go 1.27.2 for source, CI, and container builds to fix reachable
+  standard-library vulnerabilities in HTML reports and Windows file/process handling.
+
 ### Fixed
 - Keep report diff ordering deterministic when identically named resources
   appear in different namespaces or have different Kubernetes kinds.
+- Normalize source line endings to LF and repair gofmt output on Windows.
+- Bound CLI subprocess tests, close captured output before reading it, and run
+  the local test gate without `-race` when cgo is disabled.
+- Skip signing local snapshots so they work without cosign or CI identity credentials.
+
+### Added
+- Fuzz coverage for manifest YAML, configuration/waiver YAML, and report JSON parsers.
+- Local cross-platform release instructions with versioned builds and SHA256SUMS
+  for use while GitHub Actions is unavailable.
 
 ## [1.1.0] - 2026-07-05
 

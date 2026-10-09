@@ -51,6 +51,7 @@ nav:
   - Trust:
       - Limitations & threat model: limitations.md
       - Stability & compatibility: stability.md
+      - Releasing locally: RELEASING.md
 
 markdown_extensions:
   - admonition

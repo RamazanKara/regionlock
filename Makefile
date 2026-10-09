@@ -9,7 +9,12 @@ build: ## build the CLI
 	go build $(LDFLAGS) -o $(BINARY) $(PKG)
 
 test: ## run the test suite
-	go test ./... -race
+ifeq ($(shell go env CGO_ENABLED),1)
+	go test ./... -race -timeout=60s
+else
+	@echo "Skipping race detector (CGO_ENABLED=0)."
+	go test ./... -timeout=60s
+endif
 
 vet:
 	go vet ./...
@@ -53,7 +58,7 @@ gen-policies: ## regenerate the embedded `regionlock policy` templates from the 
 	  > internal/policygen/gatekeeper.yaml.tmpl
 
 snapshot: ## build a local release snapshot (requires goreleaser)
-	goreleaser release --snapshot --clean
+	goreleaser release --snapshot --clean --skip=sign
 
 docs: ## build the documentation site (requires mkdocs-material)
 	mkdocs build --strict

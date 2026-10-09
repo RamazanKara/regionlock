@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/RamazanKara/regionlock/internal/regmap"
 	"github.com/RamazanKara/regionlock/internal/report"
@@ -46,7 +48,9 @@ func TestCLIExitCodes(t *testing.T) {
 		{"bad flag", []string{"report", "--unknown"}, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestCLIExitCodes$", "--"}, tc.args...)...)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestCLIExitCodes$", "--"}, tc.args...)...)
 			cmd.Env = append(os.Environ(), "REGIONLOCK_TEST_CLI=1")
 			out, err := cmd.CombinedOutput()
 			code := 0
@@ -75,6 +79,10 @@ func captureOutput(t *testing.T, run func() error) (string, error) {
 	os.Stdout = f
 	defer func() { os.Stdout = old }()
 	runErr := run()
+	os.Stdout = old
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 	b, err := os.ReadFile(f.Name())
 	if err != nil {
 		t.Fatal(err)

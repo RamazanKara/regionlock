@@ -34,11 +34,11 @@ type oscalImportAP struct {
 }
 
 type oscalResult struct {
-	UUID             string        `json:"uuid"`
-	Title            string        `json:"title"`
-	Description      string        `json:"description"`
-	Start            string        `json:"start"`
-	ReviewedControls oscalReviewed `json:"reviewed-controls"`
+	UUID             string         `json:"uuid"`
+	Title            string         `json:"title"`
+	Description      string         `json:"description"`
+	Start            string         `json:"start"`
+	ReviewedControls oscalReviewed  `json:"reviewed-controls"`
 	Findings         []oscalFinding `json:"findings"`
 }
 

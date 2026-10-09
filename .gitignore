@@ -2,6 +2,7 @@
 /regionlock
 /regionlock.exe
 *.exe
+/dist/
 
 # generated evidence output
 /evidence/

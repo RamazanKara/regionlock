@@ -13,7 +13,7 @@ both admission engines.
 
 ## Development
 
-Use Go 1.23+, GNU Make, a C compiler for Go's race detector, and golangci-lint v2.1.6.
+Use Go 1.27.2+, GNU Make, a C compiler for Go's race detector, and golangci-lint v2.14.0.
 On Windows the Makefile's shell recipes need a POSIX shell (for example Git Bash), or
 run the targets in WSL with Linux tools. Helm and MkDocs Material are needed only for
 the chart and documentation targets.
@@ -26,7 +26,9 @@ make lint-chart
 make docs
 ```
 
-`make test` runs `go test ./... -race`. `make lint` runs the configured golangci-lint
+`make test` runs `go test ./... -race -timeout=60s` when cgo is enabled; with
+`CGO_ENABLED=0` it runs the same tests without the race detector and reports the skip.
+`make lint` runs the configured golangci-lint
 checks. `make lint-chart` lints and renders all three engine settings; it does not run
 admission tests. `make docs` builds MkDocs in strict mode.
 

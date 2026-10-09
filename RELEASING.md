@@ -1,5 +1,7 @@
 # Releasing
 
+For a release without GitHub Actions, follow the [local release procedure](docs/RELEASING.md).
+
 The [release workflow](.github/workflows/release.yml) is triggered by `v*` tags.
 This page describes the checked-in configuration, not confirmation that any artifact
 has been published. Publication and remote signature verification require a separate
