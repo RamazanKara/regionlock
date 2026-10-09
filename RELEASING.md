@@ -1,44 +1,34 @@
 # Releasing
 
-Releases are cut by pushing a `v*` tag; the [`release`](.github/workflows/release.yml)
-workflow does the rest via [GoReleaser](https://goreleaser.com).
+The [release workflow](.github/workflows/release.yml) is triggered by `v*` tags.
+This page describes the checked-in configuration, not confirmation that any artifact
+has been published. Publication and remote signature verification require a separate
+release environment; GitHub Actions is currently unavailable due to billing.
 
-## Steps
+Before an authorized release, move the relevant `Unreleased` changelog items into the
+version section, align `chart/regionlock/Chart.yaml` version/appVersion, and run the
+local lint/test/build gate with a patched Go toolchain. Creating and pushing a signed
+version tag triggers release jobs.
 
-1. Update [`CHANGELOG.md`](CHANGELOG.md): move items from `Unreleased` into the
-   new version section.
-2. Ensure `chart/regionlock/Chart.yaml` `version`/`appVersion` match the release.
-3. Tag and push:
-   ```bash
-   git tag -s v1.0.0 -m "v1.0.0"
-   git push origin v1.0.0
-   ```
+## Configured outputs
 
-## What the release produces
+[GoReleaser configuration](.goreleaser.yaml) targets Linux, macOS, and Windows on amd64
+and arm64, with archives, checksums, cosign signatures/certificates, and syft SBOMs.
+Separate workflow jobs publish a multi-architecture container and an OCI Helm chart.
+The Homebrew formula is configured to skip upload when the tap token is absent.
 
-- Cross-platform binaries (linux/darwin/windows × amd64/arm64) as archives
-- `checksums.txt` + a keyless **cosign** signature and certificate
-- An **SBOM** per archive (syft)
-- A multi-arch **container image** at `ghcr.io/ramazankara/regionlock`
-- The Helm chart pushed as an **OCI artifact** to `ghcr.io/ramazankara/charts`
-- A **Homebrew** formula in `RamazanKara/homebrew-tap` (if the token is set)
+These paths depend on credentials, registry access, tool compatibility, and successful
+jobs. A local source build does not verify them.
 
-## Required repository secrets
+## Credentials
 
-| Secret | Needed for | If unset |
-|---|---|---|
-| `GITHUB_TOKEN` | releases, ghcr image + chart | always present |
-| `HOMEBREW_TAP_TOKEN` | pushing the Homebrew formula to `homebrew-tap` | Homebrew publish is skipped automatically |
+| Credential | Configured use |
+|---|---|
+| `GITHUB_TOKEN` | Release assets and GHCR container/chart publication |
+| `HOMEBREW_TAP_TOKEN` | Optional Homebrew tap updates |
+| Workflow `id-token: write` | Keyless cosign signing |
 
-`id-token: write` (already granted in the workflow) enables keyless cosign
-signing, so there is no long-lived signing key to manage.
-
-## Verifying a release
-
-```bash
-cosign verify-blob \
-  --certificate checksums.txt.pem --signature checksums.txt.sig \
-  --certificate-identity-regexp 'https://github.com/RamazanKara/regionlock' \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  checksums.txt
-```
+Release checksum signatures use cosign's blob-verification format, a certificate
+identity for this repository's release workflow, and GitHub's OIDC issuer. Verify the
+actual released checksum file, certificate, and signature before trusting downloaded
+archives. This is distinct from the CLI's raw ed25519 report signatures.

@@ -1,252 +1,122 @@
-# 🔒 Regionlock
+# Regionlock
 
-**Prove your Kubernetes workloads stay in the EU in one `helm install`.**
+Regionlock checks declarative Kubernetes placement, egress, and storage controls
+against a versioned region allow-list. The CLI scans manifests or queries a cluster
+through `kubectl`, and produces reports with regulation references, a SHA-256 digest,
+and an optional ed25519 signature. The Helm chart provides Kyverno and Gatekeeper
+admission policies for the same four control IDs.
 
-[![ci](https://github.com/RamazanKara/regionlock/actions/workflows/ci.yml/badge.svg)](https://github.com/RamazanKara/regionlock/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/RamazanKara/regionlock)](https://goreportcard.com/report/github.com/RamazanKara/regionlock)
-[![Go Reference](https://pkg.go.dev/badge/github.com/RamazanKara/regionlock.svg)](https://pkg.go.dev/github.com/RamazanKara/regionlock)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-ramazankara.github.io%2Fregionlock-blue)](https://ramazankara.github.io/regionlock/)
+A passing scan describes the objects and configuration supplied to the tool. It does
+not prove the physical location of data or establish legal compliance. See
+[limitations](docs/limitations.md).
 
-📖 **[Documentation site →](https://ramazankara.github.io/regionlock/)**
+## Build and try it
 
-Regionlock enforces data-residency (EU, Germany, Switzerland, UK, or France) on any
-Kubernetes cluster (pin workloads to in-territory regions, require customer-managed keys,
-block unrestricted egress) **and** emits a signed, article-mapped **evidence report** (HTML,
-PDF, JSON, or SARIF) that a DPO or auditor can actually use.
-
-It treats the regulation as *versioned policy code you subscribe to*, not a static
-checklist that rots. Enforcement runs on **Kyverno or OPA/Gatekeeper**, whichever your
-cluster already has.
-
-```console
-$ kubectl apply -f pod-pinned-to-us-east-1.yaml
-Error from server: admission webhook "validate.kyverno.svc-fail" denied the request:
-
-  BLOCKED: non-EU region "us-east-1" violates EU data-residency policy [GDPR Art. 44]
-```
-
-```console
-$ regionlock report --manifests ./k8s
-VERDICT: NON-COMPLIANT   score 0%   (0 pass / 6 fail / 0 skip across 6 checks)
-
-RULE                  SEVERITY  PASS  FAIL  SKIP  ARTICLES
-customer-managed-key  medium    0     1     0     GDPR Art. 32
-encryption-at-rest    medium    0     1     0     GDPR Art. 32
-eu-region-placement   high      0     2     0     GDPR Art. 44, GDPR Art. 45, EU Data Act Art. 32
-no-non-eu-egress      high      0     2     0     GDPR Art. 44, GDPR Art. 46
-```
-
-> 📄 **[See a full sample evidence report →](docs/sample/regionlock-evidence.md)**
-> (also rendered as [HTML](docs/sample/regionlock-evidence.html) and [JSON](docs/sample/regionlock-evidence.json))
-
----
-
-## Why
-
-Cloud-sovereignty spend is projected at ~$80B in 2026, the EU Data Act is in force, and
-"prove our data stays in the EU" has become a real, recurring ask from DPOs, auditors, and
-public-sector procurement. Yet on Kubernetes this is still hand-rolled per cluster: a few
-ad-hoc Kyverno policies, a spreadsheet, and no artifact you can hand an auditor. The
-confidential-compute alternatives (Constellation, Contrast, SCONE) went maintenance-mode or
-BSL/commercial.
-
-Regionlock is the missing **sovereignty layer on the CNCF stack you already run**:
-Apache-2.0, Kyverno/OPA-based, with the evidence report as a first-class output.
-
-## What it does
-
-| | |
-|---|---|
-| **Enforce** | A Helm chart of tested **Kyverno** *or* **OPA/Gatekeeper** policies that block, at admission, workloads (incl. those from Deployments/CronJobs) not pinned to an in-territory region, PVCs without a customer-managed key or encryption-at-rest, `ExternalName`/`externalIPs` services, and unrestricted-egress NetworkPolicies. Both engines are CI-verified to reach the same decision on a shared fixture set (offline via `kyverno apply` + `gator test`) and live in a kind cluster. |
-| **Prove** | `regionlock report` scans a live cluster (or your manifests) and emits an evidence report in console, Markdown, **HTML**, **PDF**, JSON, **SARIF**, **Prometheus**, or **OSCAL**, mapping every check to the specific article it evidences (with remediation), stamped with a SHA-256 digest and optional ed25519 signature. |
-| **Gate** | `regionlock lint` fails a CI build on a residency violation, `regionlock diff` comments the residency delta on a PR, and the [GitHub Action](#github-action) uploads SARIF to the Security tab, so drift is caught in the PR, not the audit. |
-
-## Install
-
-**CLI** (single Go binary, no dependencies):
+From this checkout, with Go 1.23 or later (use a patched, supported toolchain for distribution):
 
 ```bash
-go install github.com/RamazanKara/regionlock/cmd/regionlock@latest
-# or grab a release binary from the Releases page
+go build -o regionlock ./cmd/regionlock
+./regionlock version
+./regionlock policies --json
+./regionlock report --manifests testdata/violating
+./regionlock lint --manifests testdata/compliant
 ```
 
-**Policy pack** (requires [Kyverno](https://kyverno.io) in the cluster):
+On Windows, build with `go build -o regionlock.exe ./cmd/regionlock` and invoke
+`./regionlock.exe` in the examples. Manifest scans have no external runtime
+requirements. Live scans require `kubectl`, credentials, and permission to list the
+[scanned resources](docs/architecture.md).
+
+The violating fixtures intentionally fail the gate:
 
 ```bash
-helm repo add kyverno https://kyverno.github.io/kyverno/
-helm install kyverno kyverno/kyverno -n kyverno --create-namespace
-
-helm install regionlock ./chart/regionlock -n regionlock --create-namespace
+./regionlock lint --manifests testdata/violating --fail-on high
 ```
 
-## Quickstart
+This exits 1. `report` exits 0 on violations unless `--strict` is supplied. Malformed
+manifests, unreadable paths, and scans that parse no resources are errors.
 
-### 1. See it block (60-second demo on a throwaway kind cluster)
+## Reports and signing
 
 ```bash
-./demo/run.sh      # needs kind, kubectl, helm, go
+./regionlock keygen --out signing.key
+./regionlock report --manifests testdata/violating --sign-key signing.key \
+  --format html,md,json,pdf,sarif,prometheus,oscal --out ./evidence
 ```
 
-Stands up a cluster, installs Kyverno + Regionlock, admits an EU pod, **blocks** a
-`us-east-1` pod, and drops an evidence report.
+Keep the signing seed private. JSON contains the digest, signature, and public key;
+verifying authorship requires an independently trusted public key. See the
+[CLI reference](docs/cli.md). Example artifacts are in [docs/sample](docs/sample).
 
-### 2. Generate an evidence report
+## Controls and jurisdictions
 
-```bash
-# From a live cluster (uses your current kubeconfig via kubectl):
-regionlock report --format html,md,json --out ./evidence
-
-# From manifests in a repo:
-regionlock report --manifests ./k8s
-
-# Signed, for an auditor:
-regionlock keygen --out signing.key
-regionlock report --sign-key signing.key --format html --out ./evidence
-```
-
-### 3. Gate it in CI
-
-```yaml
-# .github/workflows/residency.yml
-- run: go install github.com/RamazanKara/regionlock/cmd/regionlock@latest
-- run: regionlock lint --manifests ./k8s --fail-on high
-```
-
-## What each control evidences
-
-Run `regionlock policies` to print the live mapping. The versioned ruleset
-(`eu-data-residency-v1`) maps each enforcement check to specific provisions:
-
-| Control | Severity | Evidences |
+| Control ID | Default severity | Checks |
 |---|---|---|
-| `eu-region-placement` | high | GDPR Art. 44, Art. 45 · EU Data Act Art. 32 |
-| `no-non-eu-egress` | high | GDPR Art. 44, Art. 46 |
-| `customer-managed-key` | medium | GDPR Art. 32 |
-| `encryption-at-rest` | medium | GDPR Art. 32 |
+| `eu-region-placement` | high | Workload region constraints against the selected allow-list |
+| `no-non-eu-egress` | high | External services and broad NetworkPolicy egress rules |
+| `customer-managed-key` | medium | PVC key annotation or recognized StorageClass key parameters |
+| `encryption-at-rest` | medium | PVC encryption declaration or recognized StorageClass parameters |
 
-The mapping is **versioned** (`internal/regmap/data/eu-data-residency-v1.json`): pin a
-ruleset version, and updates arrive as a reviewable, changelogged bump, so the tool doesn't
-silently rot when guidance shifts.
-
-### Jurisdictions
-
-Select one with `--regulation <id>` (CLI) or the matching region allow-list (chart):
-
-| Ruleset | Jurisdiction | Regulations |
-|---|---|---|
-| `eu-data-residency-v1` (default) | European Union | GDPR, EU Data Act |
-| `de-data-residency-v1` | Germany | GDPR + BDSG |
-| `ch-fadp-v1` | Switzerland | revFADP / nDSG |
-| `uk-data-residency-v1` | United Kingdom | UK GDPR + DPA 2018 |
-| `fr-data-residency-v1` | France | GDPR + Loi Informatique et Libertés |
-| `au-data-residency-v1` | Australia | Privacy Act 1988 (APP 8, s 16C) |
-| `ca-data-residency-v1` | Canada | PIPEDA + BC FOIPPA + Quebec Law 25 |
-| `in-data-residency-v1` | India | DPDP Act 2023 + RBI localization |
-
-Each ships its own in-territory region list. Adding another jurisdiction is one JSON file;
-see [docs/regulations.md](docs/regulations.md). To keep admission enforcement in lock-step
-with what the CLI evidences, generate the chart's region allow-list straight from a ruleset:
+Eight bundled rulesets cover EU, Germany, Switzerland, UK, France, Australia, Canada,
+and India. Their region lists and legal references are policy inputs, not a legal
+opinion. Use `policies` or `explain` to inspect them:
 
 ```bash
-regionlock policies --regulation au-data-residency-v1 --values > au.yaml
-helm upgrade --install regionlock ./chart/regionlock -f au.yaml
+./regionlock policies --regulation au-data-residency-v1
+./regionlock explain customer-managed-key --regulation ch-fadp-v1
+./regionlock policies --regulation in-data-residency-v1 --values > in.yaml
+./regionlock policy --regulation au-data-residency-v1 --engine kyverno > policies.yaml
 ```
 
-Or generate ready-to-apply admission policies for any jurisdiction with no Helm (the policy
-bodies are the chart's, verbatim; CI proves the generated policies reach the same enforcement):
+`--values` emits the chart's `euRegions` allow-list. `policy` renders embedded policy
+templates with the selected ruleset ID and regions. Chart and CLI options differ;
+see [configuration](docs/configuration.md) before relying on matching results.
+
+## Admission policies
+
+The chart is under `chart/regionlock`. Offline rendering requires Helm:
 
 ```bash
-regionlock policy --regulation au-data-residency-v1 --engine kyverno | kubectl apply -f -
+helm lint chart/regionlock
+helm template regionlock chart/regionlock --set engine=kyverno > kyverno.yaml
+helm template regionlock chart/regionlock --set engine=gatekeeper > gatekeeper.yaml
 ```
 
-`regionlock explain <control>` prints what a control checks, the articles it evidences, and
-how to fix a violation; the same remediation shows up on every failing check in the report.
+Applying these policies requires the corresponding engine in a Kubernetes cluster.
+Gatekeeper ConstraintTemplate CRDs must exist before applying the Constraints. Live
+admission, minimum engine versions, and engine decision parity are not verified by
+the current lint/test/build gate. See [installation](docs/installation.md).
 
-## GitHub Action
+## CI and development
 
-Gate every PR and surface violations in the Security tab:
+The single [CI workflow](.github/workflows/ci.yml) runs lint, tests with `-race`, and a
+build on push or manual dispatch. GitHub Actions is currently unavailable due to
+billing; use the local gate (Go, a C compiler, GNU Make, and golangci-lint v2.1.6):
 
-```yaml
-- uses: actions/checkout@v4
-- id: regionlock
-  uses: RamazanKara/regionlock@v1.1.0
-  with:
-    manifests: ./k8s
-    regulation: eu-data-residency-v1
-    fail-on: high
-- uses: github/codeql-action/upload-sarif@v3
-  if: always()
-  with:
-    sarif_file: ${{ steps.regionlock.outputs.sarif }}
+```bash
+make lint test build
 ```
 
-Or comment the residency **delta** of a PR (what it newly violates/resolves) with
-`regionlock diff`. See [examples/github](examples/github) and
-[docs/ci-integration.md](docs/ci-integration.md).
+Release and docs-deployment workflows remain separate. The [composite action](action.yml)
+and [integration examples](examples) are available for users' workflows; remote action
+execution and release publication are not part of the local gate.
 
-## How it compares
-
-| | Regionlock | Hand-rolled Kyverno | Confidential-compute (Constellation/Contrast) | Generic scanners (Trivy/Kubescape) |
-|---|---|---|---|---|
-| EU-residency policy bundle | ✅ tested, versioned | ⚠️ DIY, per cluster | ➖ different problem | ➖ no residency category |
-| Auditor-ready evidence report | ✅ article-mapped, signed | ❌ | ⚠️ attestation, not GDPR-mapped | ⚠️ generic compliance |
-| License | Apache-2.0 | — | ⚠️ BSL / commercial | mixed |
-| Runs on your existing stack | ✅ Kyverno/OPA | ✅ | ❌ needs SEV-SNP/TDX nodes | ✅ |
-
-## Configuration
-
-Everything is a Helm value (`chart/regionlock/values.yaml`) or a `regionlock.yaml` for the
-CLI (`--config`). Key knobs: `engine` (kyverno/gatekeeper/both), `enforcementAction`
-(Enforce/Audit), `euRegions` (the allow-list), `requireRegion`, `allowExternalName`,
-`cmkAnnotation`, `encryptionLabel`, `excludeNamespaces`. See
-[`regionlock.example.yaml`](regionlock.example.yaml) and [docs/configuration.md](docs/configuration.md).
-
-## Scope & honesty
-
-Regionlock evidences **technical and organizational placement controls** enforced on the
-cluster: region pinning, egress restriction, customer-managed keys, encryption-at-rest. It is
-**not** a cryptographic attestation that data never physically left the EEA (that needs
-confidential computing / TEE attestation). The evidence report says exactly this, so you can
-hand it to a DPO without over-claiming.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks and adding jurisdictions.
 
 ## Documentation
 
-- [Installation](docs/installation.md) · [Configuration](docs/configuration.md) ·
-  [Regulations](docs/regulations.md) · [CI integration](docs/ci-integration.md) ·
-  [Architecture](docs/architecture.md) · [Limitations & threat model](docs/limitations.md) ·
-  [Stability](docs/stability.md) · [Releasing](RELEASING.md)
+- [CLI reference](docs/cli.md) and [configuration](docs/configuration.md)
+- [Regulations](docs/regulations.md) and [CI integration](docs/ci-integration.md)
+- [Architecture](docs/architecture.md), [limitations](docs/limitations.md), and
+  [stability](docs/stability.md)
+- [Release configuration](RELEASING.md)
 
-## Stability
+## Remaining work
 
-Regionlock follows [semantic versioning](https://semver.org). As of **1.0.0**, the CLI
-commands/flags, the report JSON schema, the ruleset JSON schema, the rule IDs, and the
-chart values are a **stable public API** (see [docs/stability.md](docs/stability.md)). Both
-policy engines and the CLI are validated together in CI (offline via `kyverno apply` +
-`gator test`, and live in a kind cluster via the [e2e workflow](.github/workflows/e2e.yml)).
-
-## Roadmap
-
-Shipped: ✅ Kyverno **and** OPA/Gatekeeper engines (controller-aware) · ✅ eight
-jurisdictions (EU/DE/CH/UK/FR/AU/CA/IN) · ✅ PDF + SARIF export · ✅ evidence diff +
-PR-comment Action · ✅ signed releases (cosign + SBOM) · ✅ live kind e2e · ✅ per-control
-remediation + `explain` · ✅ published JSON Schemas · ✅ Prometheus/Grafana + OSCAL export ·
-✅ time-boxed waivers · ✅ shell completions · ✅ `regionlock policy` generator (enforce any
-jurisdiction from one source) · ✅ custom region-label support.
-
-Next:
-
-- More jurisdictions as community PRs (`us-hipaa`, `eu-health-data-space`, `jp`, `br`)
-- Live-cluster continuous evidence (scheduled report → object storage)
-- CNCF Sandbox submission
-
-## Contributing
-
-New jurisdictions are the highest-value contribution: add a ruleset JSON under
-`internal/regmap/data/<id>.json`, register it in the `rulesets` map in
-`internal/regmap/regmap.go`, and add the matching policies under `chart/`. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Live admission checks, continuous evidence collection, additional jurisdictions, and
+CNCF submission are outside the current local maintenance gate. The scanner also does
+not model per-pod NetworkPolicy selection or unions of CIDRs finer than `/1`.
 
 ## License
 
-[Apache-2.0](LICENSE) © Ramazan Kara
+[Apache-2.0](LICENSE) — Ramazan Kara

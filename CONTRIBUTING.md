@@ -1,45 +1,49 @@
 # Contributing to Regionlock
 
-Thanks for helping make EU (and beyond) data-residency enforceable and provable.
+## Adding a jurisdiction
 
-## Adding a new jurisdiction
+Add `internal/regmap/data/<id>.json`, containing regions and rule-to-article mappings.
+Register its embed and map entry in `internal/regmap/regmap.go`. Keep the four rule IDs
+aligned with the rule engine and chart. Verify legal references and explain the region
+allow-list; a jurisdiction label alone does not establish legal compliance.
 
-This is the highest-value contribution. A jurisdiction is two things:
-
-1. **A regulation ruleset**, `internal/regmap/data/<id>.json`, mapping each rule to its
-   legal provisions (see `eu-data-residency-v1.json` for the shape) and listing the
-   jurisdiction's in-territory `regions`. Register it in `internal/regmap/regmap.go` by
-   adding a `//go:embed data/<id>.json` var and one entry to the `rulesets` map;
-   `Available()` and `Load()` derive from that map automatically.
-2. **Matching enforcement policies**: `chart/regionlock/templates/policy-*.yaml`, or a new
-   chart values profile, using the same `regionlock.io/rule-id` values so enforcement and
-   evidence stay in lock-step.
-
-Keep the rule IDs identical across the CLI (`internal/rules`), the ruleset JSON, and the
-chart. That shared contract is what makes the evidence report trustworthy.
+Existing controls can use the generated `policies --values` fragment or `policy`
+templates. New controls need evaluator tests, regulation mappings, and policies for
+both admission engines.
 
 ## Development
 
+Use Go 1.23+, GNU Make, a C compiler for Go's race detector, and golangci-lint v2.1.6.
+On Windows the Makefile's shell recipes need a POSIX shell (for example Git Bash), or
+run the targets in WSL with Linux tools. Helm and MkDocs Material are needed only for
+the chart and documentation targets.
+
 ```bash
-make build      # build the CLI
-make test       # go test ./... -race
-make evidence   # regenerate the sample evidence report in docs/sample
-make lint-chart # helm lint + render (requires helm)
+make lint test build
+make vet
+make tidy
+make lint-chart
+make docs
 ```
 
-The rule engine has no cluster dependency. `regionlock report --manifests <dir>` and the
-table-driven tests in `internal/rules` cover the logic. The Helm chart is validated in CI
-(`helm lint` + `helm template` + a check that Kyverno's `{{ }}` expressions survive Helm
-templating).
+`make test` runs `go test ./... -race`. `make lint` runs the configured golangci-lint
+checks. `make lint-chart` lints and renders all three engine settings; it does not run
+admission tests. `make docs` builds MkDocs in strict mode.
+
+To refresh the sample artifacts, `make evidence` builds the CLI and runs all report
+formats against `testdata/violating`. Review generated changes before including them.
+`make gen-policies` regenerates embedded policies from Helm templates; review those
+diffs whenever chart policies change.
+
+The single CI workflow runs lint, race tests, and a build on push and manual dispatch.
+GitHub Actions is currently unavailable due to billing, so local results are the gate.
+Release and docs-deployment workflows are separate. Live Kubernetes, Kyverno/Gatekeeper
+behavior, and publication need their own environment checks.
 
 ## Ground rules
 
-- Every new rule needs: a `Rule*` evaluator + tests, a `regmap` entry with real article
-  citations, and a chart policy.
-- Don't over-claim. Regionlock evidences **placement/egress/key controls**, not cryptographic
-  proof that data never left the EEA. Keep messages and docs precise.
-- Run `gofmt`, `go vet`, and `go test ./...` before opening a PR.
-
-## License
+Keep changes focused, run `gofmt` on changed Go files, and add regression tests for bugs.
+Report verification gaps. Describe declared placement/egress/storage controls precisely;
+do not claim cryptographic proof that data stayed in a region.
 
 By contributing you agree your work is licensed under [Apache-2.0](LICENSE).

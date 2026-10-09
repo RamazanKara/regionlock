@@ -33,6 +33,28 @@ func compileReportSchema(t *testing.T) *jsonschema.Schema {
 	return sch
 }
 
+func TestEmptyReportMatchesSchema(t *testing.T) {
+	rs, err := regmap.Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep := Build(nil, rs, Meta{Tool: "regionlock", Version: "test", Source: "configmap.yaml", GeneratedAt: time.Unix(0, 0)})
+	b, err := rep.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compileReportSchema(t).Validate(doc); err != nil {
+		t.Fatalf("report with no applicable checks violates the schema: %v", err)
+	}
+	if rep.Summary.Checks != 0 || rep.Summary.Score != 100 {
+		t.Fatalf("unexpected empty summary: %+v", rep.Summary)
+	}
+}
+
 // TestReportMatchesSchema builds a report covering pass/fail/skip statuses,
 // signs it, and validates the JSON against the published report schema.
 func TestReportMatchesSchema(t *testing.T) {

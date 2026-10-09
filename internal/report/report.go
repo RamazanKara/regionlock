@@ -45,14 +45,14 @@ func (a ArticleRef) String() string { return a.Regulation + " " + a.Article }
 
 // FindingOut is a finding enriched with its regulation mapping for output.
 type FindingOut struct {
-	RuleID      string       `json:"ruleId"`
-	RuleName    string       `json:"ruleName"`
-	Severity    string       `json:"severity"`
-	Status      rules.Status `json:"status"`
-	Kind        string       `json:"kind"`
-	Name        string       `json:"name"`
-	Namespace   string       `json:"namespace"`
-	Message     string       `json:"message"`
+	RuleID        string       `json:"ruleId"`
+	RuleName      string       `json:"ruleName"`
+	Severity      string       `json:"severity"`
+	Status        rules.Status `json:"status"`
+	Kind          string       `json:"kind"`
+	Name          string       `json:"name"`
+	Namespace     string       `json:"namespace"`
+	Message       string       `json:"message"`
 	Source        string       `json:"source,omitempty"`
 	Articles      []ArticleRef `json:"articles,omitempty"`
 	Remediation   string       `json:"remediation,omitempty"`
@@ -156,7 +156,10 @@ func Build(findings []rules.Finding, rs *regmap.Ruleset, meta Meta) Report {
 			ID: rs.ID, Version: rs.Version, Title: rs.Title,
 			Jurisdiction: rs.Jurisdiction, Updated: rs.Updated,
 		},
-		Waivers: meta.Waivers,
+		Waivers:    meta.Waivers,
+		RuleScores: []RuleScore{},
+		Namespaces: []NamespaceScore{},
+		Findings:   []FindingOut{},
 	}
 
 	resources := map[string]bool{}

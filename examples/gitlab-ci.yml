@@ -5,10 +5,9 @@ regionlock:
   stage: test
   script:
     - go install github.com/RamazanKara/regionlock/cmd/regionlock@latest
-    # Fail the pipeline on high-severity residency violations.
-    - regionlock lint --manifests ./k8s --fail-on high
-    # Always produce an auditor-ready evidence bundle (HTML + JSON + SARIF).
+    # Generate evidence before the lint gate can stop the job.
     - regionlock report --manifests ./k8s --format html,json,sarif --out ./evidence
+    - regionlock lint --manifests ./k8s --fail-on high
   artifacts:
     when: always
     expire_in: 30 days

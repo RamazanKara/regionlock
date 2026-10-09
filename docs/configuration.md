@@ -18,8 +18,15 @@ the selected ruleset's defaults.
 | `regionLabelKeys` / `--region-label-keys` | standard topology keys | Node label keys read as the cloud region; override for a non-standard region label (admission still matches the standard keys) |
 | `--strict` (report) | `false` | Exit non-zero when the report is non-compliant |
 
-Precedence for the region allow-list: **flags** > `--config` > the ruleset's
-`regions` > built-in EU default. See [`regionlock.example.yaml`](https://github.com/RamazanKara/regionlock/blob/master/regionlock.example.yaml).
+Precedence for the region allow-list: `--config` > the ruleset's `regions` >
+built-in default; there is no region allow-list flag. Other explicit CLI flags
+override the corresponding config fields. The config is loaded only with `--config`.
+See [`regionlock.example.yaml`](https://github.com/RamazanKara/regionlock/blob/master/regionlock.example.yaml).
+
+PVCs with an omitted or null `storageClassName` can use a default StorageClass in
+the scan. An explicit `storageClassName: ""` disables that fallback, matching
+[Kubernetes defaulting](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1).
+Annotation/label overrides still apply to those PVCs.
 
 ## Waivers (documented exceptions)
 
@@ -64,22 +71,21 @@ exceptions are covered by the tamper-evident digest.
 | `euRegions` | EU list | In-territory region allow-list |
 | `cmkAnnotation` | `regionlock.io/cmk-key-id` | PVC annotation for a customer key |
 | `encryptionLabel` | `regionlock.io/encrypted` | PVC encryption label (`"true"`) |
-| `approvedStorageClasses` | `[]` | StorageClass names that satisfy the CMK + encryption controls by name (admission cannot read StorageClass parameters) |
+| `approvedStorageClasses` | `[]` | StorageClass names that satisfy the CMK + encryption controls by name (admission matches class names) |
 | `excludeNamespaces` | system + kyverno + regionlock | Namespaces exempt from all policies |
 | `policies.*` | all `true` | Toggle individual controls |
 
-> Note: admission cannot require a namespace to *have* an egress NetworkPolicy
-> (that is not an admission event). Use `regionlock lint --require-egress-policy`
-> in CI for default-allow-egress detection. See [limitations](limitations.md).
+> The bundled admission policies do not check whether a namespace has an egress
+> NetworkPolicy. Use `regionlock lint --require-egress-policy` in CI for that check.
+> See [limitations](limitations.md).
 
 ### Rolling out safely
 
-Start in `Audit`, watch the policy reports, then flip to `Enforce`:
+Render both modes before testing them in a disposable cluster:
 
 ```bash
-helm upgrade regionlock ./chart/regionlock --set enforcementAction=Audit
-# ...review PolicyReports / Gatekeeper audit results...
-helm upgrade regionlock ./chart/regionlock --set enforcementAction=Enforce
+helm template regionlock ./chart/regionlock --set enforcementAction=Audit > audit.yaml
+helm template regionlock ./chart/regionlock --set enforcementAction=Enforce > enforce.yaml
 ```
 
 ### Switching jurisdiction in the chart
@@ -89,6 +95,6 @@ Switzerland-only footprint, set it to that jurisdiction's regions (see
 [regulations.md](regulations.md)):
 
 ```bash
-helm upgrade regionlock ./chart/regionlock \
-  --set-json 'euRegions=["eu-central-1","europe-west3","germanywestcentral","germanynorth"]'
+regionlock policies --regulation de-data-residency-v1 --values > de.yaml
+helm template regionlock ./chart/regionlock -f de.yaml > de-policies.yaml
 ```

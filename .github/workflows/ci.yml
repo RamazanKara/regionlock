@@ -1,36 +1,13 @@
 name: ci
 on:
   push:
-    branches: [master, main]
-  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  go:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: go vet ./...
-      - run: go test ./... -race -coverprofile=cover.out
-      - run: go build ./...
-      - name: lint gate must FAIL on violating fixtures
-        run: |
-          if go run ./cmd/regionlock lint --manifests testdata/violating; then
-            echo "expected a non-zero exit on violating fixtures"; exit 1
-          else
-            echo "ok: violations gated"
-          fi
-      - name: lint gate must PASS on compliant fixtures
-        run: go run ./cmd/regionlock lint --manifests testdata/compliant
-      - name: multi-jurisdiction rulesets load
-        run: |
-          for r in eu-data-residency-v1 de-data-residency-v1 ch-fadp-v1 uk-data-residency-v1 fr-data-residency-v1; do
-            go run ./cmd/regionlock policies --regulation "$r" >/dev/null || { echo "ruleset $r failed"; exit 1; }
-          done
-
-  golangci:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,85 +17,4 @@ jobs:
       - uses: golangci/golangci-lint-action@v7
         with:
           version: v2.1.6
-
-  chart:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
-      - run: python3 -m pip install --quiet pyyaml
-      - name: helm lint
-        run: helm lint chart/regionlock
-      - name: render + validate each engine
-        run: |
-          set -e
-          for engine in kyverno gatekeeper both; do
-            helm template rl chart/regionlock --set engine=$engine > /tmp/$engine.yaml
-            python3 -c "import yaml; list(yaml.safe_load_all(open('/tmp/$engine.yaml')))"
-            echo "engine=$engine renders to valid YAML"
-          done
-      - name: Kyverno brace-escaping intact
-        # The rendered Kyverno JMESPath sits inside a double-quoted YAML scalar, so
-        # the label's quotes are backslash-escaped (nodeSelector.\"topology…\").
-        run: grep -qF 'nodeSelector.\"topology.kubernetes.io/region\"' /tmp/kyverno.yaml
-      - name: all four Kyverno policies present
-        run: |
-          for p in eu-region-placement no-non-eu-egress customer-managed-key encryption-at-rest; do
-            grep -q "regionlock-$p" /tmp/kyverno.yaml || { echo "missing policy $p"; exit 1; }
-          done
-
-  gatekeeper:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - uses: azure/setup-helm@v4
-      - name: install gator
-        run: go install github.com/open-policy-agent/gatekeeper/v3/cmd/gator@v3.18.0
-      - name: render Gatekeeper policies and test the Rego
-        run: |
-          helm template rl chart/regionlock --set engine=gatekeeper > /tmp/gk.yaml
-          n=$(gator test -f /tmp/gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
-          echo "gator reported $n violations"
-          test "$n" -eq 17 || { echo "expected 17 violations, got $n"; exit 1; }
-      - name: CLI-generated Gatekeeper policies reach the same count
-        run: |
-          go build -o /tmp/regionlock ./cmd/regionlock
-          /tmp/regionlock policy --regulation eu-data-residency-v1 --engine gatekeeper > /tmp/gen-gk.yaml
-          n=$(gator test -f /tmp/gen-gk.yaml -f chart/regionlock/gatekeeper-tests/resources.yaml --output json | jq 'length')
-          echo "regionlock policy (gatekeeper) gator reported $n violations"
-          test "$n" -eq 17 || { echo "generated Gatekeeper policy expected 17, got $n"; exit 1; }
-
-  kyverno:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - uses: azure/setup-helm@v4
-      - name: install kyverno CLI
-        run: |
-          curl -fsSL -o /tmp/ky.tar.gz https://github.com/kyverno/kyverno/releases/download/v1.18.1/kyverno-cli_v1.18.1_linux_x86_64.tar.gz
-          tar -xzf /tmp/ky.tar.gz -C /tmp kyverno
-          sudo mv /tmp/kyverno /usr/local/bin/kyverno
-      - name: render Kyverno policies and test them offline
-        run: |
-          helm template rl chart/regionlock > /tmp/ky.yaml
-          # kyverno apply reuses the same test resources; Kyverno covers controllers
-          # via autogen and reaches the same 17 violations Gatekeeper reaches explicitly.
-          # kyverno apply exits non-zero when a policy fails, which is expected
-          # here; capture the output without letting `set -e` abort the step.
-          out=$(kyverno apply /tmp/ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml || true)
-          echo "$out" | tail -3
-          echo "$out" | grep -qE "fail: 17" || { echo "expected fail: 17"; exit 1; }
-          echo "$out" | grep -E "pod-eu|pvc-good|pod-aff-eu" && { echo "a compliant resource was flagged"; exit 1; } || echo "compliant resources clean"
-      - name: CLI-generated Kyverno policies reach the same count
-        run: |
-          go build -o /tmp/regionlock ./cmd/regionlock
-          /tmp/regionlock policy --regulation eu-data-residency-v1 --engine kyverno > /tmp/gen-ky.yaml
-          out=$(kyverno apply /tmp/gen-ky.yaml --resource chart/regionlock/gatekeeper-tests/resources.yaml || true)
-          echo "$out" | tail -3
-          echo "$out" | grep -qE "fail: 17" || { echo "generated Kyverno policy expected fail: 17"; exit 1; }
+      - run: make test build

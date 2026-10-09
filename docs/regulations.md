@@ -1,7 +1,7 @@
 # Regulation rulesets
 
-A ruleset maps each enforcement control to the specific legal provisions it
-provides evidence of, and defines the in-territory region allow-list. Rulesets
+A ruleset associates each control with legal references and defines a region
+allow-list. These are bundled policy inputs, not a legal determination. Rulesets
 are **versioned** and embedded in the binary; pick one with `--regulation <id>`.
 
 Run `regionlock policies --regulation <id>` to print the full mapping.
@@ -34,15 +34,15 @@ articles above with their source URLs, and concrete remediation for any control.
 ## Enforcing a non-default jurisdiction
 
 The Helm chart's `euRegions` allow-list drives admission. Generate it straight from
-a ruleset so enforcement and evidence never drift:
+a ruleset to use the same region list for chart rendering and CLI checks:
 
 ```bash
 regionlock policies --regulation in-data-residency-v1 --values > in.yaml
-helm upgrade --install regionlock ./chart/regionlock -f in.yaml
+helm template regionlock ./chart/regionlock -f in.yaml > in-policies.yaml
 ```
 
-The CLI (`--regulation in-data-residency-v1`) and the chart now use the same regions
-from one source: the ruleset.
+The CLI (`--regulation in-data-residency-v1`) and the rendered chart use the same
+regions. Other configuration and engine behavior still differ; see [limitations](limitations.md).
 
 ## Versioning
 
@@ -58,7 +58,7 @@ file (regions + rule→article mappings) plus registration in
 
 ## Scope
 
-Every ruleset evidences **technical and organizational controls**: placement,
-egress restriction, customer-managed keys, encryption at rest. None of them is a
-cryptographic attestation that data never physically left the territory; that
-requires confidential computing / TEE attestation.
+Reports describe declared placement, egress, and storage controls. They do not
+establish legal compliance or attest to physical data location. The default EU
+allow-list includes UK and Swiss regions; it is not a strict EU/EEA geofence.
+Inspect the selected ruleset and override `euRegions` for your own requirements.

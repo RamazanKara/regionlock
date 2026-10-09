@@ -1,160 +1,147 @@
 # CLI reference
 
-`regionlock` is a single static binary. Run `regionlock <command> -h` for a command's flags.
-
-```
-regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
-regionlock lint     --manifests DIR [--fail-on any|high]
-regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
-regionlock policies [--regulation ID] [--json | --values]
-regionlock policy   [--regulation ID] [--engine kyverno|gatekeeper|both]
-regionlock explain  [RULE-ID] [--regulation ID]
-regionlock keygen   [--out FILE]
-regionlock completion bash|zsh|fish|powershell
-regionlock version  [--json]
-```
-
-## Global concepts
-
-- `--regulation <id>` selects a jurisdiction ruleset (default `eu-data-residency-v1`). See
-  [Regulations](regulations.md).
-- `--config <file>` loads a `regionlock.yaml` (see [Configuration](configuration.md)).
-- Precedence for tunables: **flags** > `--config` > the ruleset's defaults.
+Run `regionlock help` for the command list and `regionlock <command> -h` for flag-based
+commands. `completion` takes exactly one shell name. Examples assume the built binary
+is on `PATH` and the working directory is the repository root.
 
 ## `report`
 
-Scan manifests or a live cluster and emit an evidence report.
+Scan `.yaml`/`.yml` manifests recursively, or query a live cluster with `kubectl` when
+`--manifests` is omitted. A single manifest file is also accepted. A manifest scan
+fails on any read/parse error or when no resources are parsed. Unknown Kubernetes kinds
+can be parsed without producing any applicable checks; inspect `summary.checks`.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--manifests DIR` | *(live cluster)* | Directory of manifests to scan; omit to scan the cluster via `kubectl` |
-| `--kubeconfig` / `--context` | ambient | Kubeconfig / context for the live scan |
-| `--format` | `console` | Comma list: `console,json,md,html,pdf,sarif,prometheus,oscal` |
-| `--out DIR` | stdout | Directory for file outputs (required for `pdf`/`sarif`) |
-| `--regulation ID` | `eu-data-residency-v1` | Jurisdiction ruleset |
-| `--cluster-region REGION` | — | Declare the cluster's single region (single-region clusters) |
-| `--require-region` | `true` | Fail workloads with no region constraint |
-| `--require-egress-policy` | `false` | Flag namespaces with no egress NetworkPolicy |
-| `--allow-external-name` | `false` | Permit `Service` type=ExternalName |
-| `--allow-external-ips` | `false` | Permit `Service` spec.externalIPs |
-| `--sign-key FILE` | — | ed25519 seed (hex) to sign the report |
-| `--strict` | `false` | Exit non-zero when the report is non-compliant |
+| `--manifests` | live cluster | Manifest file or directory |
+| `--kubeconfig` / `--context` | ambient | Live-scan credentials and context |
+| `--format` | `console` | Comma list: `console,json,md,html,pdf,sarif,prometheus,oscal`; aliases `markdown` and `prom` |
+| `--out` | stdout | Output directory; required only for PDF; console always goes to stdout |
+| `--regulation` | `eu-data-residency-v1` | Bundled ruleset ID |
+| `--config` | none | YAML config file; not loaded automatically |
+| `--cluster-region` | empty | Declared single cluster region |
+| `--require-region` | `true` | Fail unpinned workloads |
+| `--require-egress-policy` | `false` | Flag workload namespaces with no egress NetworkPolicy |
+| `--allow-external-name` | `false` | Permit `ExternalName` services |
+| `--allow-external-ips` | `false` | Permit services with `externalIPs` |
+| `--region-label-keys` | standard topology keys | Comma-separated region label keys, case-sensitive |
+| `--sign-key` | none | File containing a hex-encoded 32-byte ed25519 seed |
+| `--strict` | `false` | Exit 1 after emitting a report with unwaived failures |
+
+Boolean flags use `--require-region=false` to disable a default. Explicit flags override
+config values; the config overrides ruleset defaults. There is no region allow-list
+flag: set `euRegions` in the config.
 
 ```bash
-# auditor-ready, signed PDF of the live cluster
-regionlock keygen --out signing.key
-regionlock report --sign-key signing.key --format pdf,html --out ./evidence
+regionlock report --manifests testdata/violating --format json,sarif --out evidence
+regionlock report --manifests testdata/compliant --strict
 ```
+
+Live `--kubeconfig`/`--context` behavior is covered by a mocked kubectl test; a real
+cluster scan is outside the current local gate.
 
 ## `lint`
 
-CI gate over manifests. Exits non-zero on violations.
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--manifests DIR` | *(required)* | Directory of manifests |
-| `--fail-on` | `any` | `any` (all controls) or `high` (region + egress only) |
-| plus the `report` config flags | | `--regulation`, `--cluster-region`, `--require-egress-policy`, … |
+`--manifests` is required. `--fail-on any` (default) gates all failures; `--fail-on high`
+gates the region and egress controls. It accepts all the report configuration flags,
+but not live-cluster, output, signing, or `--strict` flags. Waivers apply to both commands.
 
 ```bash
-regionlock lint --manifests ./k8s --fail-on high
+regionlock lint --manifests testdata/compliant --fail-on any
+regionlock lint --manifests testdata/violating --fail-on high
 ```
+
+The second command intentionally exits 1.
 
 ## `diff`
 
-Compare two JSON reports and render the residency delta (new / resolved violations).
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--baseline OLD.json` | *(required)* | Baseline report |
-| `--current NEW.json` | *(required)* | Current report |
-| `--format` | `console` | `console` or `md` (PR-comment ready) |
-| `--out FILE` | stdout | Write the diff to a file |
-| `--fail-on-regression` | `false` | Exit non-zero if new violations were introduced |
-
-## `policies`
-
-Print a ruleset's controls and their article mapping.
+Required flags: `--baseline OLD.json` and `--current NEW.json`. Optional flags:
+`--format console|md` (`markdown` also works), `--out FILE`, `--fail-on-regression`.
+The command compares findings; it does not verify report signatures.
 
 ```bash
-regionlock policies                          # default (EU) ruleset
-regionlock policies --regulation ch-fadp-v1  # Switzerland
-regionlock policies --json                   # machine-readable
+regionlock report --manifests testdata/compliant --format json --out base
+regionlock report --manifests testdata/violating --format json --out cur
+regionlock diff --baseline base/regionlock-evidence.json \
+  --current cur/regionlock-evidence.json --format md --out delta.md
 ```
 
-`--values` prints a Helm values fragment (`euRegions`) for the jurisdiction, so admission
-enforcement uses the same regions the CLI evidences:
+Adding `--fail-on-regression` makes this example exit 1 because new violations appear.
+
+## `policies` and `policy`
+
+`policies` prints the selected ruleset. `--json` emits JSON; `--values` emits a Helm
+`euRegions` fragment. If both are supplied, `--values` takes precedence.
 
 ```bash
+regionlock policies
+regionlock policies --regulation ch-fadp-v1 --json
 regionlock policies --regulation in-data-residency-v1 --values > in.yaml
-helm upgrade --install regionlock ./chart/regionlock -f in.yaml
+helm template regionlock chart/regionlock -f in.yaml > in-policies.yaml
 ```
 
-## `policy`
-
-Generate ready-to-apply admission policies for a jurisdiction, straight from its ruleset (no
-Helm needed). The policy bodies are the chart's, verbatim; only the region allow-list is
-pinned to the jurisdiction, so admission enforces exactly what the CLI evidences. CI asserts
-the generated policies reach the same shared fixture-violation count as the chart.
+`policy` renders embedded templates, with `--engine kyverno|gatekeeper|both` (default
+`kyverno`) and `--regulation ID`. It does not accept CLI config or chart values.
 
 ```bash
-regionlock policy --regulation au-data-residency-v1 --engine kyverno | kubectl apply -f -
-regionlock policy --regulation in-data-residency-v1 --engine both > policies.yaml
+regionlock policy --regulation au-data-residency-v1 --engine kyverno > policies.yaml
+regionlock policy --regulation in-data-residency-v1 --engine both > both-policies.yaml
 ```
 
-For richer knobs (Audit mode, excluded namespaces), install the Helm chart with the
-generated values instead: `regionlock policies --regulation X --values`.
+Rendering does not deploy or verify admission. See [Installation](installation.md).
 
 ## `explain`
 
-Explain a single control: what it checks, the articles it evidences (with source URLs), and
-how to fix a violation. With no rule id, it lists the ruleset's controls.
+With no positional argument it lists controls. A rule ID prints its description,
+regulation references, and remediation. `--regulation` may appear before or after the ID.
 
 ```bash
-regionlock explain                                              # list controls
-regionlock explain eu-region-placement                          # default (EU)
-regionlock explain customer-managed-key --regulation ch-fadp-v1 # Switzerland
+regionlock explain
+regionlock explain eu-region-placement
+regionlock explain customer-managed-key --regulation ch-fadp-v1
 ```
 
-## `keygen`
-
-Generate an ed25519 signing key (seed) for signed evidence reports.
+## `keygen` and signing
 
 ```bash
-regionlock keygen --out signing.key   # writes a hex seed (keep secret) + prints the public key
+regionlock keygen --out signing.key
+regionlock report --manifests testdata/violating --sign-key signing.key \
+  --format json,pdf,html --out evidence
 ```
 
-## `completion`
+`--out` writes the secret seed as hex and prints the public key. Without it, `keygen`
+prints labeled seed and public-key lines; that output is not a seed file.
 
-Print a shell completion script:
+There is no signature-verification command. Verification must recompute SHA-256 over
+the report's canonical Go JSON encoding with `integrity` zeroed, compare the digest,
+and verify the ed25519 signature over the raw digest bytes. Trust the public key through
+an independent channel; an embedded key alone does not authenticate the author. The
+unit tests verify signing with Go's ed25519 implementation. `cosign verify-blob` for
+release checksums is a separate format and does not directly verify report JSON.
+
+## `completion` and `version`
+
+These commands generate scripts locally; installing them into a shell is separate:
 
 ```bash
-regionlock completion bash > /etc/bash_completion.d/regionlock
-regionlock completion zsh  > "${fpath[1]}/_regionlock"
-regionlock completion fish > ~/.config/fish/completions/regionlock.fish
-regionlock completion powershell | Out-String | Invoke-Expression
+regionlock completion bash > regionlock.bash
+regionlock completion zsh > regionlock.zsh
+regionlock completion fish > regionlock.fish
+regionlock completion powershell > regionlock.ps1
+regionlock version
+regionlock version --json
 ```
 
-## `version`
-
-```bash
-regionlock version          # regionlock <version>
-regionlock version --json   # {"tool","version","goVersion"} for scripts
-```
+`pwsh` is an alias for `powershell`. Version JSON contains `tool`, `version`, and
+`goVersion`. The plain version comes from the build-time value; a source build without
+version ldflags reports the development default.
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | success / compliant (or non-compliant without a gating flag) |
-| `1` | gating violation (`lint`, `diff --fail-on-regression`, `report --strict`) or a runtime error |
-| `2` | usage error (unknown command / bad flags) |
+| `0` | Command completed; reports may contain failures unless gated |
+| `1` | Gating violation or command/runtime validation error |
+| `2` | Missing/unknown command or flag parser error |
 
-## Verifying a signed report
-
-```bash
-# the report embeds the digest, signature, and public key
-cosign verify-blob ...    # or verify the ed25519 signature over the sha256 digest directly
-```
-
-See [CI integration](ci-integration.md) for the GitHub Action and PR-comment workflows.
+See [CI integration](ci-integration.md) for integration scope.

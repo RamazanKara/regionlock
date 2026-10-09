@@ -257,10 +257,10 @@ func toWaiverRecords(outcomes []rules.WaiverOutcome) []report.WaiverRecord {
 func gather(manifests, kubeconfig, kctx string) ([]model.Resource, string, error) {
 	if manifests != "" {
 		rs, errs := scan.ParseManifests(manifests)
-		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "warning: %v\n", e)
+		if len(errs) > 0 {
+			return nil, "", fmt.Errorf("scanning manifests: %w", errors.Join(errs...))
 		}
-		if len(rs) == 0 && len(errs) > 0 {
+		if len(rs) == 0 {
 			return nil, "", errors.New("no resources parsed")
 		}
 		return rs, manifests, nil
@@ -280,7 +280,7 @@ func runReport(args []string) error {
 	kubeconfig := fs.String("kubeconfig", "", "path to kubeconfig for live scan")
 	kctx := fs.String("context", "", "kubeconfig context for live scan")
 	format := fs.String("format", "console", "comma list: console,json,md,html,pdf,sarif,prometheus,oscal")
-	out := fs.String("out", "", "directory to write file outputs (default: stdout; required for pdf/sarif)")
+	out := fs.String("out", "", "directory to write file outputs (default: stdout; required for pdf)")
 	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
 	configPath := fs.String("config", "", "path to a regionlock.yaml config")
 	signKey := fs.String("sign-key", "", "path to an ed25519 seed (hex) to sign the report")
@@ -580,11 +580,11 @@ func runPolicies(args []string) error {
 		return printHelmValues(rs)
 	}
 	if *asJSON {
-		b, err := yaml.Marshal(rs) // yaml is fine for a human dump; keep deps minimal
+		b, err := json.MarshalIndent(rs, "", "  ")
 		if err != nil {
 			return err
 		}
-		fmt.Print(string(b))
+		fmt.Println(string(b))
 		return nil
 	}
 	fmt.Printf("%s@%s  %s (%s)\n", rs.ID, rs.Version, rs.Title, rs.Jurisdiction)

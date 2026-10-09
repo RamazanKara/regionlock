@@ -6,7 +6,52 @@ import (
 	"testing"
 
 	"github.com/RamazanKara/regionlock/internal/model"
+	"github.com/RamazanKara/regionlock/internal/rules"
 )
+
+func TestPVCStorageClassDefaulting(t *testing.T) {
+	const storageClass = `kind: StorageClass
+metadata:
+  name: encrypted
+  annotations: {storageclass.kubernetes.io/is-default-class: "true"}
+parameters: {kmsKeyId: "key-id", encrypted: "true"}
+---
+kind: PersistentVolumeClaim
+metadata: {name: data}
+spec:
+  accessModes: [ReadWriteOnce]
+`
+	for _, tc := range []struct {
+		name, field string
+		disabled    bool
+		status      rules.Status
+	}{
+		{"omitted uses default", "", false, rules.Pass},
+		{"null uses default", "  storageClassName: null\n", false, rules.Pass},
+		{"empty disables default", "  storageClassName: \"\"\n", true, rules.Fail},
+		{"named class", "  storageClassName: encrypted\n", false, rules.Pass},
+		{"unknown class", "  storageClassName: unknown\n", false, rules.Fail},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resources, err := ParseBytes([]byte(storageClass+tc.field), "pvc.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(resources) != 2 || resources[1].PVC == nil || resources[1].PVC.NoStorageClass != tc.disabled {
+				t.Fatalf("storageClassName presence lost: %+v", resources)
+			}
+			findings := rules.Evaluate(resources, rules.DefaultConfig())
+			if len(findings) != 2 {
+				t.Fatalf("expected CMK and encryption checks, got %v", findings)
+			}
+			for _, f := range findings {
+				if f.Status != tc.status {
+					t.Errorf("%s = %s, want %s: %s", f.RuleID, f.Status, tc.status, f.Message)
+				}
+			}
+		})
+	}
+}
 
 const deploymentYAML = `
 apiVersion: apps/v1

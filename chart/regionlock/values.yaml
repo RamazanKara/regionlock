@@ -1,6 +1,5 @@
 # -- Policy engine to render for: "kyverno", "gatekeeper", or "both".
-# Kyverno and OPA/Gatekeeper produce equivalent enforcement; pick what your
-# cluster already runs.
+# Pick the engine installed in your cluster; validate its admission behavior.
 engine: kyverno
 
 # -- How the engine reacts to a violation: "Enforce" blocks admission, "Audit"
@@ -20,8 +19,8 @@ allowExternalName: false
 # allowExternalName (externalIPs advertises arbitrary destination IPs).
 allowExternalIPs: false
 
-# -- Cloud region identifiers considered inside the EEA. Matched against the
-# well-known topology.kubernetes.io/region label. Extend for your providers.
+# -- Baseline region allow-list (includes UK and Swiss regions). Matched against
+# topology.kubernetes.io/region; review for your own residency requirements.
 euRegions:
   # AWS
   - eu-central-1
@@ -68,8 +67,8 @@ encryptionLabel: regionlock.io/encrypted
 # -- StorageClasses known to provision encrypted volumes with a customer-managed
 # key. A PVC that uses one of these satisfies the CMK and encryption controls
 # without needing the per-PVC annotation/label (mirrors the CLI, which reads the
-# StorageClass parameters directly). Admission cannot look up the StorageClass
-# object, so it matches by name; list your encrypted, CMK-backed StorageClasses.
+# StorageClass parameters directly). The admission policies match by name;
+# list your encrypted, CMK-backed StorageClasses.
 approvedStorageClasses: []
 
 # -- Namespaces exempt from every Regionlock policy.

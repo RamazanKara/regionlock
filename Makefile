@@ -22,8 +22,9 @@ tidy:
 
 lint-chart: ## requires helm
 	helm lint chart/regionlock
-	@for e in kyverno gatekeeper both; do \
-		helm template regionlock chart/regionlock --set engine=$$e >/dev/null && echo "engine=$$e renders OK"; \
+	@set -e; for e in kyverno gatekeeper both; do \
+		helm template regionlock chart/regionlock --set engine=$$e >/dev/null; \
+		echo "engine=$$e renders OK"; \
 	done
 
 gator-test: ## test the Gatekeeper Rego (requires helm + gator)
@@ -37,14 +38,17 @@ evidence: build ## regenerate the sample evidence report from the violating fixt
 	./$(BINARY) report --manifests testdata/violating --format console,html,md,json,pdf,sarif,prometheus,oscal --out docs/sample
 
 gen-policies: ## regenerate the embedded `regionlock policy` templates from the chart (requires helm)
+	# Avoid native Windows make's code-page conversion of template delimiters.
+	rl_open=$$(printf '\302\253'); rl_close=$$(printf '\302\273'); \
 	helm template regionlock chart/regionlock --set engine=kyverno --set-json 'euRegions=["__RL_REGIONS__"]' \
-	  | sed -e 's/                  - __RL_REGIONS__/«regions 18»/' \
-	        -e 's#regionlock.io/ruleset: eu-data-residency-v1#regionlock.io/ruleset: «.RulesetID»#' \
+	  | sed -e "s/                  - __RL_REGIONS__/$${rl_open}regions 18$${rl_close}/" \
+	        -e "s#regionlock.io/ruleset: eu-data-residency-v1#regionlock.io/ruleset: $${rl_open}.RulesetID$${rl_close}#" \
 	        -e 's#app.kubernetes.io/managed-by: Helm#app.kubernetes.io/managed-by: regionlock#' \
 	  > internal/policygen/kyverno.yaml.tmpl
+	rl_open=$$(printf '\302\253'); rl_close=$$(printf '\302\273'); \
 	helm template regionlock chart/regionlock --set engine=gatekeeper --set-json 'euRegions=["__RL_REGIONS__"]' \
-	  | sed -e 's/      - __RL_REGIONS__/«regions 6»/' \
-	        -e 's#regionlock.io/ruleset: eu-data-residency-v1#regionlock.io/ruleset: «.RulesetID»#' \
+	  | sed -e "s/      - __RL_REGIONS__/$${rl_open}regions 6$${rl_close}/" \
+	        -e "s#regionlock.io/ruleset: eu-data-residency-v1#regionlock.io/ruleset: $${rl_open}.RulesetID$${rl_close}#" \
 	        -e 's#app.kubernetes.io/managed-by: Helm#app.kubernetes.io/managed-by: regionlock#' \
 	  > internal/policygen/gatekeeper.yaml.tmpl
 

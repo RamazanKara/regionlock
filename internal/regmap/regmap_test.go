@@ -1,10 +1,47 @@
 package regmap
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/RamazanKara/regionlock/internal/rules"
 )
+
+func TestRuleLookupAndRemediation(t *testing.T) {
+	rs, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mapping := rs.byID[rules.RuleCMK]
+	mapping.Remediation = "Use the approved customer key."
+	rs.byID[rules.RuleCMK] = mapping
+	for _, tc := range []struct {
+		id, remediation string
+		exists          bool
+	}{
+		{rules.RuleCMK, mapping.Remediation, true},
+		{rules.RuleEURegion, DefaultRemediation(rules.RuleEURegion), true},
+		{"unknown", "", false},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			rule, ok := rs.Rule(tc.id)
+			if ok != tc.exists {
+				t.Fatalf("lookup exists = %v, want %v", ok, tc.exists)
+			}
+			if !reflect.DeepEqual(rs.Articles(tc.id), rule.Articles) {
+				t.Fatal("article lookup differs from rule mapping")
+			}
+			if got := rs.Remediation(tc.id); got != tc.remediation {
+				t.Errorf("remediation = %q, want %q", got, tc.remediation)
+			}
+			for _, a := range rule.Articles {
+				if a.String() != a.Regulation+" "+a.Article {
+					t.Errorf("incorrect article reference: %s", a.String())
+				}
+			}
+		})
+	}
+}
 
 // knownRules is the set of rule IDs the engine implements. Every bundled ruleset
 // must map exactly these, so enforcement and evidence never drift.

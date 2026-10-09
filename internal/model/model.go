@@ -84,6 +84,8 @@ type ServiceSpec struct {
 // and encryption at rest.
 type PVCSpec struct {
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// An explicit empty storageClassName opts out of the cluster default.
+	NoStorageClass bool `json:"noStorageClass,omitempty"`
 }
 
 // StorageClassSpec captures the StorageClass fields that reveal whether volumes

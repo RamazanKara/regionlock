@@ -220,7 +220,8 @@ func extract(doc map[string]any, source string) (model.Resource, bool) {
 		}
 	case "PersistentVolumeClaim":
 		spec := mapAt(doc, "spec")
-		r.PVC = &model.PVCSpec{StorageClassName: strAt(spec, "storageClassName")}
+		name, set := spec["storageClassName"].(string)
+		r.PVC = &model.PVCSpec{StorageClassName: name, NoStorageClass: set && name == ""}
 	case "StorageClass":
 		// StorageClass fields are top-level, not under spec.
 		r.StorageClass = &model.StorageClassSpec{

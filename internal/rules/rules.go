@@ -46,13 +46,13 @@ const (
 
 // Finding is one rule evaluated against one resource.
 type Finding struct {
-	RuleID    string         `json:"ruleId"`
-	Status    Status         `json:"status"`
-	Kind      string         `json:"kind"`
-	Name      string         `json:"name"`
-	Namespace string         `json:"namespace"`
-	Message   string         `json:"message"`
-	Source    string         `json:"source,omitempty"`
+	RuleID    string `json:"ruleId"`
+	Status    Status `json:"status"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Message   string `json:"message"`
+	Source    string `json:"source,omitempty"`
 	// WaiverReason and WaiverExpires are set only when Status is Waived.
 	WaiverReason  string         `json:"waiverReason,omitempty"`
 	WaiverExpires string         `json:"waiverExpires,omitempty"`
@@ -330,7 +330,7 @@ func evalCMK(r model.Resource, cfg Config, idx scIndex) []Finding {
 		return []Finding{newFinding(r, RuleCMK, Pass,
 			fmt.Sprintf("customer-managed key referenced (%s=%s)", cfg.CMKAnnotation, v))}
 	}
-	if sc, name, ok := idx.resolve(r.PVC.StorageClassName); ok && scHasCMK(sc) {
+	if sc, name, ok := idx.resolve(*r.PVC); ok && scHasCMK(sc) {
 		return []Finding{newFinding(r, RuleCMK, Pass,
 			fmt.Sprintf("StorageClass %q provisions with a customer-managed key", name))}
 	}
@@ -345,7 +345,7 @@ func evalEncryption(r model.Resource, cfg Config, idx scIndex) []Finding {
 	if isTrue(r.Labels[cfg.EncryptionLabel]) || isTrue(r.Annotations[cfg.EncryptionLabel]) {
 		return []Finding{newFinding(r, RuleEncryptedAt, Pass, "encryption at rest declared")}
 	}
-	if sc, name, ok := idx.resolve(r.PVC.StorageClassName); ok && scEncrypted(sc) {
+	if sc, name, ok := idx.resolve(*r.PVC); ok && scEncrypted(sc) {
 		return []Finding{newFinding(r, RuleEncryptedAt, Pass,
 			fmt.Sprintf("StorageClass %q provisions encrypted volumes", name))}
 	}
@@ -379,9 +379,13 @@ func buildSCIndex(resources []model.Resource) scIndex {
 }
 
 // resolve returns the StorageClass a PVC will use: the named one, or the cluster
-// default when the name is empty. ok is false when it cannot be resolved (the SC
+// default when the name is omitted. ok is false when it cannot be resolved (the SC
 // object was not in scope), in which case callers fall back to the annotation.
-func (idx scIndex) resolve(name string) (model.StorageClassSpec, string, bool) {
+func (idx scIndex) resolve(pvc model.PVCSpec) (model.StorageClassSpec, string, bool) {
+	if pvc.NoStorageClass {
+		return model.StorageClassSpec{}, "", false
+	}
+	name := pvc.StorageClassName
 	if name != "" {
 		sc, ok := idx.byName[name]
 		return sc, name, ok
