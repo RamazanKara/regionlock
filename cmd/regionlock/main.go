@@ -14,6 +14,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -58,6 +59,10 @@ func main() {
 		err = runExplain(os.Args[2:])
 	case "keygen":
 		err = runKeygen(os.Args[2:])
+	case "validate":
+		err = runValidate(os.Args[2:])
+	case "verify":
+		err = runVerify(os.Args[2:])
 	case "completion":
 		err = runCompletion(os.Args[2:])
 	case "version", "--version", "-v":
@@ -79,13 +84,15 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `regionlock %s: enforce & evidence EU data-residency on Kubernetes
 
 Usage:
-  regionlock report   [--manifests DIR | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
-  regionlock lint     --manifests DIR [--fail-on any|high]
+  regionlock report   [--manifests FILE|DIR|- | live cluster] [--format ...] [--out DIR] [--strict] [--sign-key FILE]
+  regionlock lint     --manifests FILE|DIR|- [--fail-on any|high]
   regionlock diff     --baseline OLD.json --current NEW.json [--fail-on-regression]
   regionlock policies [--regulation ID] [--json | --values]
   regionlock policy   [--regulation ID] [--engine kyverno|gatekeeper|both]
   regionlock explain  [RULE-ID] [--regulation ID]
   regionlock keygen   [--out FILE]
+  regionlock validate --config FILE
+  regionlock verify   --report FILE --public-key HEX
   regionlock completion bash|zsh|fish|powershell
   regionlock version  [--json]
 
@@ -255,6 +262,20 @@ func toWaiverRecords(outcomes []rules.WaiverOutcome) []report.WaiverRecord {
 }
 
 func gather(manifests, kubeconfig, kctx string) ([]model.Resource, string, error) {
+	if manifests == "-" {
+		b, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, "", fmt.Errorf("reading stdin: %w", err)
+		}
+		rs, err := scan.ParseBytes(b, "stdin")
+		if err != nil {
+			return nil, "", fmt.Errorf("scanning stdin: %w", err)
+		}
+		if len(rs) == 0 {
+			return nil, "", errors.New("stdin: no resources parsed")
+		}
+		return rs, "stdin", nil
+	}
 	if manifests != "" {
 		rs, errs := scan.ParseManifests(manifests)
 		if len(errs) > 0 {
@@ -276,7 +297,7 @@ func gather(manifests, kubeconfig, kctx string) ([]model.Resource, string, error
 
 func runReport(args []string) error {
 	fs := flag.NewFlagSet("report", flag.ExitOnError)
-	manifests := fs.String("manifests", "", "directory of Kubernetes manifests to scan (default: live cluster via kubectl)")
+	manifests := fs.String("manifests", "", "manifest file, directory, or - for stdin (default: live cluster via kubectl)")
 	kubeconfig := fs.String("kubeconfig", "", "path to kubeconfig for live scan")
 	kctx := fs.String("context", "", "kubeconfig context for live scan")
 	format := fs.String("format", "console", "comma list: console,json,md,html,pdf,sarif,prometheus,oscal")
@@ -427,7 +448,7 @@ func writeOrPrint(out, name string, b []byte) error {
 
 func runLint(args []string) error {
 	fs := flag.NewFlagSet("lint", flag.ExitOnError)
-	manifests := fs.String("manifests", "", "directory of manifests to lint (required)")
+	manifests := fs.String("manifests", "", "manifest file, directory, or - for stdin (required)")
 	regulation := fs.String("regulation", regmap.DefaultRuleset, "regulation ruleset id")
 	configPath := fs.String("config", "", "path to a regionlock.yaml config")
 	failOn := fs.String("fail-on", "any", "which failures set a non-zero exit: any|high")
@@ -440,7 +461,7 @@ func runLint(args []string) error {
 	fs.Parse(args)
 
 	if *manifests == "" {
-		return errors.New("lint requires --manifests DIR")
+		return errors.New("lint requires --manifests FILE|DIR|-")
 	}
 	if *failOn != "any" && *failOn != "high" {
 		return fmt.Errorf("--fail-on must be any|high, got %q", *failOn)

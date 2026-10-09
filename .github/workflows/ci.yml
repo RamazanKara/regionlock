@@ -17,4 +17,5 @@ jobs:
       - uses: golangci/golangci-lint-action@v7
         with:
           version: v2.14.0
-      - run: make test build
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+      - run: make fmt-check vet test vulncheck build

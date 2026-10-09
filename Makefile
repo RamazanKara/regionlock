@@ -3,7 +3,7 @@ PKG     := ./cmd/regionlock
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
-.PHONY: build test vet lint tidy lint-chart gator-test demo evidence gen-policies snapshot docs docs-serve clean
+.PHONY: build test vet lint fmt-check fuzz vulncheck tidy lint-chart gator-test demo evidence gen-policies snapshot docs docs-serve clean
 
 build: ## build the CLI
 	go build $(LDFLAGS) -o $(BINARY) $(PKG)
@@ -18,6 +18,18 @@ endif
 
 vet:
 	go vet ./...
+
+fmt-check: ## check Go formatting
+	@files=$$(gofmt -l cmd internal) || exit 1; if [ -n "$$files" ]; then echo "$$files"; exit 1; fi
+
+fuzz: ## exercise each parser with two workers
+	go test ./internal/scan -run='^$$' -fuzz='^FuzzParseBytes$$' -fuzztime=30s -parallel=2
+	go test ./internal/report -run='^$$' -fuzz='^FuzzParseJSON$$' -fuzztime=30s -parallel=2
+	go test ./cmd/regionlock -run='^$$' -fuzz='^FuzzConfig$$' -fuzztime=30s -parallel=2
+	go test ./internal/report -run='^$$' -fuzz='^FuzzVerifyJSON$$' -fuzztime=30s -parallel=2
+
+vulncheck: ## check reachable vulnerabilities (requires govulncheck)
+	govulncheck -test ./...
 
 lint: ## static analysis (requires golangci-lint)
 	golangci-lint run

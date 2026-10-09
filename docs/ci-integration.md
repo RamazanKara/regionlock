@@ -2,15 +2,17 @@
 
 ## Local gate
 
-From this checkout, with Go, a C compiler, GNU Make, and golangci-lint v2.1.6:
+From this checkout, with Go 1.27.2+, GNU Make, golangci-lint v2.14.0, and
+govulncheck v1.8.0:
 
 ```bash
-make lint test build
+make fmt-check vet lint test fuzz vulncheck build
 ```
 
-The single CI workflow runs lint, race tests, and a build on push or manual dispatch.
-GitHub Actions is currently unavailable due to billing, so local checks are the gate.
-The release and docs-deployment workflows are retained separately.
+The single CI workflow runs formatting, vet, lint (including staticcheck), tests,
+vulnerability checks, and a build. Race tests run only with cgo enabled and a C
+compiler available. GitHub Actions is currently unavailable, so local checks are
+the gate. Release and docs publication are manual.
 
 ## Gate manifests and generate artifacts
 

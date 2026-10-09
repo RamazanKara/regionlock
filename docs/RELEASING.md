@@ -4,11 +4,11 @@ GitHub Actions is currently unavailable. Build the six CLI archives locally with
 Go 1.27.2 (the version required by `go.mod`). The commands below use PowerShell 7
 and Git for Windows, with its `usr/bin` directory on `PATH` for GNU `tar` and `gzip`;
 cgo and GCC are not needed for the binaries.
-Run them from the repository root. The next patch version is `1.1.1`.
+Run them from the repository root. The next feature version is `1.2.0`; the rehearsal below uses `1.2.0-dev`.
 
 ## Local gate
 
-Install the scanner with `go install golang.org/x/vuln/cmd/govulncheck@latest` and
+Install the scanner with `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0` and
 use golangci-lint v2.14.0. Ensure both executables are on `PATH`. Go automatically
 downloads the toolchain required by `go.mod` when `GOTOOLCHAIN=auto`.
 
@@ -33,7 +33,7 @@ Run these checks, stopping on any failure:
 go version
 go mod tidy -diff
 $goRoot = go env GOROOT
-$unformatted = & (Join-Path $goRoot 'bin/gofmt') -l (git ls-files '*.go')
+$unformatted = & (Join-Path $goRoot 'bin/gofmt') -l cmd internal
 if ($unformatted) { throw "Run gofmt on: $unformatted" }
 go vet ./...
 golangci-lint run
@@ -41,6 +41,7 @@ go test ./... -count=1 -timeout=60s
 govulncheck -test ./...
 go test ./internal/scan -run='^$' -fuzz='^FuzzParseBytes$' -fuzztime=30s -parallel=2
 go test ./internal/report -run='^$' -fuzz='^FuzzParseJSON$' -fuzztime=30s -parallel=2
+go test ./internal/report -run='^$' -fuzz='^FuzzVerifyJSON$' -fuzztime=30s -parallel=2
 go test ./cmd/regionlock -run='^$' -fuzz='^FuzzConfig$' -fuzztime=30s -parallel=2
 git diff --check
 ```
@@ -49,7 +50,7 @@ Check `$LASTEXITCODE` after each native command. Fuzz seed cases run in the norm
 test suite too. Keep only small reproductions of failures in `testdata/fuzz`; Go
 keeps additional coverage inputs in its build cache.
 
-`make lint test vet build` is the equivalent main gate when GNU Make is installed.
+`make fmt-check vet lint test fuzz vulncheck build` is the equivalent gate when GNU Make is installed.
 `make test` uses `-race` when `go env CGO_ENABLED` is `1`; otherwise it explicitly
 reports the skip. On Windows without GCC, use `CGO_ENABLED=0`. Before publishing,
 run `go test -race ./... -count=1 -timeout=60s` on Linux with cgo and a C compiler
@@ -65,9 +66,12 @@ Cross-compilation checks the other targets build; it does not run their binaries
 
 Move the intended `Unreleased` changelog entries into a dated version section and
 align the chart version/appVersion before a real release. Commit and review that
-release source, then create its `v1.1.1` tag as a separate publication step. Build
+release source, then create its `v1.2.0` tag as a separate publication step. Build
 the archives from that exact clean source revision. For a local rehearsal, leave
 the changelog unreleased and do not tag or publish.
+
+For a final release, set `releaseVersion` to the intended release version and rebuild
+from the reviewed source revision. The example keeps rehearsal artifacts labeled `-dev`.
 
 The following block preserves the caller's Go environment and refuses to mix
 new artifacts with an existing release directory. It sets Unix archive modes
@@ -75,7 +79,7 @@ explicitly so binaries built on Windows remain executable on Linux and macOS:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$releaseVersion = '1.1.1'
+$releaseVersion = '1.2.0-dev'
 $releaseDir = Join-Path $PWD "dist/release-$releaseVersion"
 if (Test-Path $releaseDir) { throw "Use a fresh release directory: $releaseDir" }
 New-Item -ItemType Directory $releaseDir | Out-Null
@@ -121,11 +125,11 @@ $sums = foreach ($archive in $archives) {
 if ($LASTEXITCODE) { throw 'Version smoke test failed' }
 ```
 
-Confirm the version output says `1.1.1` and `go1.27.2`. Inspect archive contents and
+Confirm the version output says `1.2.0-dev` and `go1.27.2`. Inspect archive contents and
 test binaries on their target OS/architecture before publication. Verify downloaded
 archives with `sha256sum -c SHA256SUMS` on Linux, or compare `Get-FileHash -Algorithm
 SHA256` to the manifest on Windows. Checksums detect corruption; these local archives
-do not carry the workflow's Sigstore signature, SBOM, container, chart, or Homebrew
+do not carry a Sigstore signature, SBOM, container, chart, or Homebrew
 updates. Only advertise artifacts that were actually produced and verified.
 
 There is no `make release` target. `make snapshot` runs

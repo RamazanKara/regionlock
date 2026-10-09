@@ -5,6 +5,13 @@
 Pass with `--config regionlock.yaml`. All fields optional; unset falls back to
 the selected ruleset's defaults.
 
+Before scanning, run `regionlock validate --config regionlock.yaml`. This opt-in
+check reports file and line information for unknown fields, wrong types, duplicate
+keys, extra YAML documents, and malformed waivers. It expects one YAML mapping;
+use `{}` for defaults. Waiver semantic errors point to the list entry. Expired
+waivers are valid but inactive during scans. Existing `report`/`lint` config
+loading and flag precedence are unchanged.
+
 | Field / flag | Default | Meaning |
 |---|---|---|
 | `euRegions` | ruleset's `regions` | Allow-list of in-territory cloud regions |

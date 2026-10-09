@@ -13,7 +13,7 @@ can be parsed without producing any applicable checks; inspect `summary.checks`.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--manifests` | live cluster | Manifest file or directory |
+| `--manifests` | live cluster | Manifest file, directory, or `-` for stdin |
 | `--kubeconfig` / `--context` | ambient | Live-scan credentials and context |
 | `--format` | `console` | Comma list: `console,json,md,html,pdf,sarif,prometheus,oscal`; aliases `markdown` and `prom` |
 | `--out` | stdout | Output directory; required only for PDF; console always goes to stdout |
@@ -37,6 +37,19 @@ regionlock report --manifests testdata/violating --format json,sarif --out evide
 regionlock report --manifests testdata/compliant --strict
 ```
 
+To scan rendered manifests without a temporary file:
+
+```bash
+set -o pipefail
+helm template myapp ./my-chart | regionlock report --manifests - --format json
+```
+
+On PowerShell, `Get-Content -Raw ./testdata/compliant/workloads.yaml | regionlock.exe lint --manifests -`
+also works. Check the producer's exit status when piping external commands.
+Stdin accepts multi-document YAML and JSON (including Kubernetes Lists). Reports
+record `stdin` as the source. Empty input and malformed streams fail, even if
+earlier documents parsed successfully; no partial report is emitted.
+
 Live `--kubeconfig`/`--context` behavior is covered by a mocked kubectl test; a real
 cluster scan is outside the current local gate.
 
@@ -51,7 +64,22 @@ regionlock lint --manifests testdata/compliant --fail-on any
 regionlock lint --manifests testdata/violating --fail-on high
 ```
 
-The second command intentionally exits 1.
+The second command intentionally exits 1. `--manifests -` reads stdin with the same
+gating rules.
+
+## `validate`
+
+```bash
+regionlock validate --config regionlock.example.yaml
+```
+
+Checks one config file without a scan or cluster access. Unknown fields (including
+waiver fields), wrong types, duplicate keys, multiple YAML documents, and malformed
+waivers fail with the filename and YAML line number. Waiver semantic errors point
+to the list entry. Use `{}` for an explicit default configuration. Expired waivers
+remain valid configuration but do not suppress scan failures.
+
+Validation is opt-in; `report` and `lint` retain their existing config behavior.
 
 ## `diff`
 
@@ -112,12 +140,24 @@ regionlock report --manifests testdata/violating --sign-key signing.key \
 `--out` writes the secret seed as hex and prints the public key. Without it, `keygen`
 prints labeled seed and public-key lines; that output is not a seed file.
 
-There is no signature-verification command. Verification must recompute SHA-256 over
-the report's canonical Go JSON encoding with `integrity` zeroed, compare the digest,
-and verify the ed25519 signature over the raw digest bytes. Trust the public key through
-an independent channel; an embedded key alone does not authenticate the author. The
-unit tests verify signing with Go's ed25519 implementation. `cosign verify-blob` for
-release checksums is a separate format and does not directly verify report JSON.
+## `verify`
+
+```bash
+regionlock verify --report evidence/regionlock-evidence.json --public-key "$TRUSTED_PUBLIC_KEY"
+```
+
+Both flags are required. Obtain the 32-byte hex ed25519 public key from the signer
+through an independent channel; the embedded key alone does not authenticate the author.
+Verification recomputes SHA-256 over the canonical Go JSON encoding with `integrity`
+zeroed, compares the digest, checks the embedded key against the supplied key, and
+verifies the signature over the raw digest bytes.
+
+Unsigned reports, changed content, wrong keys, invalid signatures, unsupported
+algorithms, unknown or duplicate JSON fields, and trailing data exit 1. JSON whitespace and member
+order do not affect verification. Unknown fields require a verifier supporting that
+report format; `diff` continues to ignore unknown fields. Success confirms integrity
+and the supplied signing identity, not the accuracy of the original scan or compliance.
+`cosign verify-blob` for release checksums uses a separate format.
 
 ## `completion` and `version`
 

@@ -8,7 +8,7 @@ version:
 
 | Surface | Guarantee |
 |---|---|
-| **CLI commands & flags** | `report`, `lint`, `diff`, `policies`, `policy`, `explain`, `keygen`, `completion`, `version` and their documented flags are stable. New flags may be added; existing ones keep their meaning and defaults within a MAJOR. |
+| **CLI commands & flags** | `report`, `lint`, `diff`, `policies`, `policy`, `explain`, `keygen`, `validate`, `verify`, `completion`, `version` and their documented flags are stable. New flags may be added; existing ones keep their meaning and defaults within a MAJOR. |
 | **Exit codes** | `lint`/`diff --fail-on-regression`/`report --strict` return non-zero on gating violations. Runtime and usage errors also return non-zero. |
 | **Report JSON** (`--format json`) | Field names and structure are stable and additive within a MAJOR. Consumers should ignore unknown fields. |
 | **SARIF output** | Emits the SARIF 2.1.0 version and result structure. |

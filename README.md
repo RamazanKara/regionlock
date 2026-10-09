@@ -12,7 +12,7 @@ not prove the physical location of data or establish legal compliance. See
 
 ## Build and try it
 
-From this checkout, with Go 1.23 or later (use a patched, supported toolchain for distribution):
+From this checkout, with Go 1.27.2 or later (use a patched, supported toolchain for distribution):
 
 ```bash
 go build -o regionlock ./cmd/regionlock
@@ -36,6 +36,18 @@ The violating fixtures intentionally fail the gate:
 This exits 1. `report` exits 0 on violations unless `--strict` is supplied. Malformed
 manifests, unreadable paths, and scans that parse no resources are errors.
 
+Validate configuration before scanning, or scan rendered YAML/JSON directly from stdin:
+
+```bash
+./regionlock validate --config regionlock.example.yaml
+set -o pipefail
+helm template myapp ./my-chart | ./regionlock lint --manifests -
+```
+
+`validate` catches unknown fields, type errors, duplicate keys, extra YAML documents,
+and malformed waivers with file and line information. It is opt-in; existing scan
+configuration loading is unchanged. Both `report` and `lint` accept `--manifests -`.
+
 ## Reports and signing
 
 ```bash
@@ -45,7 +57,15 @@ manifests, unreadable paths, and scans that parse no resources are errors.
 ```
 
 Keep the signing seed private. JSON contains the digest, signature, and public key;
-verifying authorship requires an independently trusted public key. See the
+verifying authorship requires an independently trusted public key. Set
+`TRUSTED_PUBLIC_KEY` to the hex public key obtained from the signer through an
+independent channel, then verify the signed JSON:
+
+```bash
+./regionlock verify --report evidence/regionlock-evidence.json --public-key "$TRUSTED_PUBLIC_KEY"
+```
+
+This recomputes the digest and checks the signature. See the
 [CLI reference](docs/cli.md). Example artifacts are in [docs/sample](docs/sample).
 
 ## Controls and jurisdictions
@@ -89,17 +109,21 @@ the current lint/test/build gate. See [installation](docs/installation.md).
 
 ## CI and development
 
-The single [CI workflow](.github/workflows/ci.yml) runs lint, tests with `-race`, and a
-build on push or manual dispatch. GitHub Actions is currently unavailable due to
-billing; use the local gate (Go, a C compiler, GNU Make, and golangci-lint v2.1.6):
+The single [CI workflow](.github/workflows/ci.yml) checks formatting, vet, lint
+(including staticcheck), tests, vulnerabilities, and a build. GitHub Actions is
+currently unavailable; use the local gate with Go 1.27.2+, GNU Make, golangci-lint
+v2.14.0, and govulncheck v1.8.0:
 
 ```bash
-make lint test build
+make fmt-check vet lint test fuzz vulncheck build
+make docs
 ```
 
-Release and docs-deployment workflows remain separate. The [composite action](action.yml)
-and [integration examples](examples) are available for users' workflows; remote action
-execution and release publication are not part of the local gate.
+`make test` uses `-race` only when cgo is enabled; otherwise it reports the skip.
+Windows shell recipes need a POSIX shell such as Git Bash. Docs need MkDocs Material.
+Prepare local archives and `SHA256SUMS` using the [release procedure](docs/RELEASING.md).
+There are no release or docs-deployment workflows. The [composite action](action.yml)
+and [integration examples](examples) remain available for users' workflows.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks and adding jurisdictions.
 
